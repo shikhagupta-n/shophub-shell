@@ -1,0 +1,597 @@
+import React, { useState, useEffect } from 'react';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Badge,
+  IconButton,
+  Box,
+  Menu,
+  MenuItem,
+  Avatar,
+  Container,
+  Divider,
+  Chip,
+  Fade,
+  Slide,
+  FormControlLabel,
+  Checkbox,
+} from '@mui/material';
+import {
+  ShoppingCart as CartIcon,
+  Person as PersonIcon,
+  ExitToApp as LogoutIcon,
+  Search as SearchIcon,
+  Favorite as FavoriteIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext.jsx';
+import { useCart } from '../contexts/CartContext.jsx';
+import attemptTracker from '../utils/attemptTracker.js';
+
+const Navbar = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, user, logout } = useAuth();
+  const { getCartItemCount } = useCart();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [failModeEnabled, setFailModeEnabled] = useState(attemptTracker.getFailMode());
+
+  // Handle scroll effect for navbar
+  useEffect(() => {
+    const handleScroll = () => {
+      const isScrolled = window.scrollY > 20;
+      setScrolled(isScrolled);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Handle user menu
+  const handleUserMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  // Handle logout - implements fail/success pattern
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // NOTE: Zipy removed from all repos.
+      handleUserMenuClose();
+      navigate('/products');
+    } catch (e) {
+      console.log('Logout failed:', e);
+      // Error is already handled by AuthContext
+    }
+  };
+
+  // Handle navigation
+  const handleNavigation = (path) => {
+    navigate(path);
+    setMobileMenuOpen(false);
+  };
+
+  // Toggle mobile menu
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  // Explicitly set fail mode via checkbox
+  const setFailMode = (enabled) => {
+    const newMode = attemptTracker.setFailMode(enabled);
+    setFailModeEnabled(newMode);
+  };
+
+  return (
+    <>
+      <AppBar 
+        position="fixed" 
+        elevation={0}
+        sx={{
+          background: scrolled 
+            ? 'rgba(255, 255, 255, 0.98)' 
+            : 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: scrolled 
+            ? '1px solid rgba(0, 0, 0, 0.08)' 
+            : '1px solid rgba(0, 0, 0, 0.04)',
+          transition: 'all 0.3s ease-in-out',
+          zIndex: 1200,
+        }}
+      >
+        <Container maxWidth="xl">
+          <Toolbar sx={{ 
+            justifyContent: 'space-between', 
+            minHeight: scrolled ? '70px' : '80px',
+            transition: 'all 0.3s ease-in-out',
+          }}>
+            {/* Logo and Brand */}
+            <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <Typography
+                variant="h4"
+                component="div"
+                sx={{ 
+                  fontWeight: 800,
+                  background: 'linear-gradient(135deg, #1a1a1a 0%, #d4af37 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  fontSize: scrolled ? '1.75rem' : '2rem',
+                  transition: 'all 0.3s ease-in-out',
+                  letterSpacing: '-0.02em',
+                }}
+                onClick={() => handleNavigation('/products')}
+              >
+                LUXE
+              </Typography>
+            </Box>
+
+            {/* Desktop Navigation Links */}
+            <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 3, alignItems: 'center' }}>
+              <Button
+                color="inherit"
+                onClick={() => handleNavigation('/products')}
+                sx={{ 
+                  textTransform: 'none', 
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  borderRadius: 3,
+                  px: 3,
+                  py: 1.5,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  outline: 'none',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.1), transparent)',
+                    transition: 'left 0.6s',
+                  },
+                  '&:hover': {
+                    background: 'rgba(212, 175, 55, 0.08)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0px 4px 12px rgba(212, 175, 55, 0.2)',
+                    '&::before': {
+                      left: '100%',
+                    },
+                  },
+                  '&:active': {
+                    transform: 'translateY(0)',
+                    background: 'rgba(212, 175, 55, 0.12)',
+                    transition: 'all 0.1s',
+                  },
+                  '&:focus': {
+                    outline: 'none',
+                    boxShadow: 'none',
+                  },
+                  '&:focus-visible': {
+                    outline: 'none',
+                    boxShadow: 'none',
+                  },
+                }}
+              >
+                SHOP
+              </Button>
+              <Button
+                color="inherit"
+                onClick={() => handleNavigation('/collections')}
+                sx={{ 
+                  textTransform: 'none', 
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  borderRadius: 3,
+                  px: 3,
+                  py: 1.5,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  outline: 'none',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.1), transparent)',
+                    transition: 'left 0.6s',
+                  },
+                  '&:hover': {
+                    background: 'rgba(212, 175, 55, 0.08)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0px 4px 12px rgba(212, 175, 55, 0.2)',
+                    '&::before': {
+                      left: '100%',
+                    },
+                  },
+                  '&:active': {
+                    transform: 'translateY(0)',
+                    background: 'rgba(212, 175, 55, 0.12)',
+                    transition: 'all 0.1s',
+                  },
+                  '&:focus': {
+                    outline: 'none',
+                    boxShadow: 'none',
+                  },
+                  '&:focus-visible': {
+                    outline: 'none',
+                    boxShadow: 'none',
+                  },
+                }}
+              >
+                COLLECTIONS
+              </Button>
+              <Button
+                color="inherit"
+                onClick={() => handleNavigation('/about')}
+                sx={{ 
+                  textTransform: 'none', 
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  borderRadius: 3,
+                  px: 3,
+                  py: 1.5,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  outline: 'none',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.1), transparent)',
+                    transition: 'left 0.6s',
+                  },
+                  '&:hover': {
+                    background: 'rgba(212, 175, 55, 0.08)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0px 4px 12px rgba(212, 175, 55, 0.2)',
+                    '&::before': {
+                      left: '100%',
+                    },
+                  },
+                  '&:active': {
+                    transform: 'translateY(0)',
+                    background: 'rgba(212, 175, 55, 0.12)',
+                    transition: 'all 0.1s',
+                  },
+                  '&:focus': {
+                    outline: 'none',
+                    boxShadow: 'none',
+                  },
+                  '&:focus-visible': {
+                    outline: 'none',
+                    boxShadow: 'none',
+                  },
+                }}
+              >
+                ABOUT
+              </Button>
+            </Box>
+
+            {/* Right side - Actions */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1,
+              }}>
+              {/* Fail Mode Checkbox - Desktop Only */}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={failModeEnabled}
+                    onChange={(e) => setFailMode(e.target.checked)}
+                  />
+                }
+                sx={{ 
+                  ml: 1,
+                  display: { xs: 'none', md: 'flex' }, // Hide on mobile, show on desktop
+                }}
+              />
+
+              {/* Search Icon */}
+              <IconButton
+                color="inherit"
+                sx={{ 
+                  color: 'text.primary',
+                  '&:hover': {
+                    background: 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
+                <SearchIcon />
+              </IconButton>
+
+              {/* Wishlist Icon */}
+              <IconButton
+                color="inherit"
+                sx={{ 
+                  color: 'text.primary',
+                  '&:hover': {
+                    background: 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
+                <FavoriteIcon />
+              </IconButton>
+
+              {/* Cart Icon */}
+              <IconButton
+                color="inherit"
+                onClick={() => handleNavigation('/cart')}
+                sx={{ 
+                  color: 'text.primary',
+                  position: 'relative',
+                  '&:hover': {
+                    background: 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
+                <Badge
+                  badgeContent={getCartItemCount()}
+                  color="secondary"
+                  sx={{
+                    '& .MuiBadge-badge': {
+                      fontSize: '0.7rem',
+                      minWidth: '18px',
+                      height: '18px',
+                      borderRadius: '9px',
+                      fontWeight: 600,
+                    },
+                  }}
+                >
+                  <CartIcon />
+                </Badge>
+              </IconButton>
+
+              {/* User Menu */}
+              {isAuthenticated ? (
+                <>
+                  <IconButton
+                    color="inherit"
+                    onClick={handleUserMenuOpen}
+                    sx={{ 
+                      ml: 1,
+                      '&:hover': {
+                        background: 'rgba(0, 0, 0, 0.04)',
+                      },
+                    }}
+                  >
+                    <Avatar
+                      sx={{
+                        width: 36,
+                        height: 36,
+                        background: 'linear-gradient(135deg, #d4af37 0%, #e6c866 100%)',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: '#1a1a1a',
+                      }}
+                    >
+                      {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                    </Avatar>
+                  </IconButton>
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleUserMenuClose}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'right',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'right',
+                    }}
+                    PaperProps={{
+                      sx: {
+                        mt: 1,
+                        minWidth: 200,
+                        borderRadius: 3,
+                        boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.12)',
+                        border: '1px solid rgba(0, 0, 0, 0.08)',
+                      },
+                    }}
+                  >
+                    <MenuItem disabled sx={{ opacity: 0.7 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <PersonIcon fontSize="small" />
+                        <Typography variant="body2" fontWeight={500}>
+                          {user?.name || user?.email}
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                    <Divider />
+                    <MenuItem onClick={handleLogout}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <LogoutIcon fontSize="small" />
+                        <Typography>Sign Out</Typography>
+                      </Box>
+                    </MenuItem>
+                  </Menu>
+                </>
+              ) : (
+                <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1, ml: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => handleNavigation('/login')}
+                    sx={{ 
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      borderColor: 'rgba(0, 0, 0, 0.2)',
+                      color: 'text.primary',
+                      '&:hover': {
+                        borderColor: 'text.primary',
+                        background: 'rgba(0, 0, 0, 0.02)',
+                      },
+                    }}
+                  >
+                    Sign In
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={() => handleNavigation('/signup')}
+                    sx={{ 
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      background: 'linear-gradient(135deg, #d4af37 0%, #e6c866 100%)',
+                      color: '#1a1a1a',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #b8941f 0%, #d4af37 100%)',
+                      },
+                    }}
+                  >
+                    Join
+                  </Button>
+                </Box>
+              )}
+
+              {/* Mobile Menu Button */}
+              <IconButton
+                color="inherit"
+                onClick={toggleMobileMenu}
+                sx={{ 
+                  display: { xs: 'flex', md: 'none' },
+                  ml: 1,
+                  color: 'text.primary',
+                }}
+              >
+                {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+              </IconButton>
+            </Box>
+          </Toolbar>
+        </Container>
+      </AppBar>
+
+      {/* Mobile Menu */}
+      <Slide direction="down" in={mobileMenuOpen} mountOnEnter unmountOnExit>
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+            zIndex: 1100,
+            pt: '80px',
+            pb: 3,
+          }}
+        >
+          <Container maxWidth="xl">
+            <Box sx={{ py: 2 }}>
+              <Button
+                fullWidth
+                variant="text"
+                onClick={() => handleNavigation('/products')}
+                sx={{ 
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  fontSize: '1.1rem',
+                  fontWeight: 500,
+                  color: 'text.primary',
+                  py: 1.5,
+                }}
+              >
+                SHOP
+              </Button>
+              <Button
+                fullWidth
+                variant="text"
+                sx={{ 
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  fontSize: '1.1rem',
+                  fontWeight: 500,
+                  color: 'text.primary',
+                  py: 1.5,
+                }}
+              >
+                COLLECTIONS
+              </Button>
+              <Button
+                fullWidth
+                variant="text"
+                sx={{ 
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  fontSize: '1.1rem',
+                  fontWeight: 500,
+                  color: 'text.primary',
+                  py: 1.5,
+                }}
+              >
+                ABOUT
+              </Button>
+              
+              {/* Fail Mode Checkbox for Mobile */}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={failModeEnabled}
+                    onChange={(e) => setFailMode(e.target.checked)}
+                  />
+                }
+                sx={{ 
+                  mt: 2,
+                  display: { xs: 'flex', md: 'none' }, // Show on mobile, hide on desktop
+                }}
+              />
+              
+              {!isAuthenticated && (
+                <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => handleNavigation('/login')}
+                    sx={{ 
+                      textTransform: 'none',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Sign In
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    fullWidth
+                    onClick={() => handleNavigation('/signup')}
+                    sx={{ 
+                      textTransform: 'none',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Join
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          </Container>
+        </Box>
+      </Slide>
+
+      {/* Spacer for fixed navbar */}
+      <Box sx={{ height: scrolled ? '70px' : '80px' }} />
+    </>
+  );
+};
+
+export default Navbar;
