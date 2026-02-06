@@ -10,7 +10,6 @@
  */
 
 import { spawn } from 'node:child_process';
-import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import process from 'node:process';
@@ -18,12 +17,23 @@ import process from 'node:process';
 const shellRepoRoot = process.cwd();
 const mfRoot = path.resolve(shellRepoRoot, '..'); // mf-repos/
 
-// NOTE: `@originjs/vite-plugin-federation` does not reliably serve `remoteEntry.js` from `vite dev`.
-// So, for remotes we run: `vite build --watch` + `vite preview`, which serves `/assets/remoteEntry.js`.
+// Migration note:
+// - Under Vite, remotes required `build --watch` + `preview` because `remoteEntry.js` was not reliably served by `vite dev`.
+// - Under Webpack Module Federation, `webpack serve` reliably serves `/remoteEntry.js`, so we can run each remote in normal dev mode.
 const remotes = [
-  { name: 'auth', cwd: path.join(mfRoot, 'shophub-auth'), port: 5174 },
-  { name: 'catalog', cwd: path.join(mfRoot, 'shophub-catalog'), port: 5175 },
-  { name: 'checkout', cwd: path.join(mfRoot, 'shophub-checkout'), port: 5176 },
+  { name: 'auth', cwd: path.join(mfRoot, 'shophub-auth'), port: 5174, remoteEntryUrl: 'http://localhost:5174/remoteEntry.js' },
+  {
+    name: 'catalog',
+    cwd: path.join(mfRoot, 'shophub-catalog'),
+    port: 5175,
+    remoteEntryUrl: 'http://localhost:5175/remoteEntry.js',
+  },
+  {
+    name: 'checkout',
+    cwd: path.join(mfRoot, 'shophub-checkout'),
+    port: 5176,
+    remoteEntryUrl: 'http://localhost:5176/remoteEntry.js',
+  },
 ];
 
 /** @type {Array<import('node:child_process').ChildProcess>} */
@@ -77,18 +87,25 @@ function isPortInUse(port, host = '127.0.0.1') {
   });
 }
 
-function waitForFile(filePath, { timeoutMs = 60_000, intervalMs = 250 } = {}) {
+async function waitForHttpOk(url, { timeoutMs = 60_000, intervalMs = 250 } = {}) {
   const start = Date.now();
-  return new Promise((resolve, reject) => {
-    const tick = () => {
-      if (fs.existsSync(filePath)) return resolve(true);
-      if (Date.now() - start > timeoutMs) {
-        return reject(new Error(`Timed out waiting for ${filePath}`));
-      }
-      setTimeout(tick, intervalMs);
-    };
-    tick();
-  });
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      // Reason: some bundlers may return 200 before the full body is streamed; for our purpose, `ok` is enough.
+      const res = await fetch(url, { method: 'GET' });
+      if (res.ok) return true;
+    } catch {
+      // ignore and retry until timeout
+    }
+
+    if (Date.now() - start > timeoutMs) {
+      throw new Error(`Timed out waiting for ${url}`);
+    }
+
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
 }
 
 function shutdown(reason) {
@@ -128,24 +145,19 @@ if (inUse.length) {
   process.exit(1);
 }
 
-process.stderr.write('[dev:all] Starting remote builds (watch mode)...\n');
+process.stderr.write('[dev:all] Starting remote dev servers...\n');
 for (const r of remotes) {
-  startService({ name: `${r.name}:build`, cwd: r.cwd, command: 'npm', args: ['run', 'build:watch'] });
+  startService({ name: r.name, cwd: r.cwd, command: 'npm', args: ['run', 'dev'] });
 }
 
-// Start previews after the first build emits remoteEntry (otherwise preview serves 404).
+// Wait for remoteEntry to be served before starting the shell.
 for (const r of remotes) {
-  const remoteEntryPath = path.join(r.cwd, 'dist', 'assets', 'remoteEntry.js');
-  await waitForFile(remoteEntryPath).catch((e) => {
+  // eslint-disable-next-line no-await-in-loop
+  await waitForHttpOk(r.remoteEntryUrl).catch((e) => {
     process.stderr.write(`[dev:all] Failed waiting for ${r.name} remoteEntry: ${e.message}\n`);
-    shutdown('remoteEntry missing');
+    shutdown('remoteEntry not reachable');
     process.exit(1);
   });
-}
-
-process.stderr.write('[dev:all] Starting remote preview servers...\n');
-for (const r of remotes) {
-  startService({ name: `${r.name}:preview`, cwd: r.cwd, command: 'npm', args: ['run', 'preview:strict'] });
 }
 
 process.stderr.write('[dev:all] Starting shell dev server...\n');

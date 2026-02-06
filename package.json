@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5173",
+    "dev": "webpack serve --config webpack.config.cjs --mode development",
     "dev:all": "node ./scripts/dev-all.mjs",
-    "build": "vite build --sourcemap",
+    "build": "webpack --config webpack.config.cjs --mode production",
     "lint": "eslint .",
-    "preview": "vite preview --port 5173"
+    "preview": "serve dist -l 5173"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -27,16 +27,25 @@
     "yup": "^1.7.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.0",
+    "@babel/preset-react": "^7.28.5",
     "@eslint/js": "^9.33.0",
-    "@originjs/vite-plugin-federation": "^1.4.1",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
-    "@vitejs/plugin-react": "^5.0.0",
+    "babel-loader": "^10.0.0",
+    "copy-webpack-plugin": "^13.0.1",
+    "css-loader": "^7.1.3",
     "eslint": "^9.33.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
-    "vite": "^7.1.2"
+    "html-webpack-plugin": "^5.6.6",
+    "mini-css-extract-plugin": "^2.10.0",
+    "serve": "^14.2.5",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.105.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.3"
   }
 }
-
