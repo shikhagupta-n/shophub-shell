@@ -10,31 +10,33 @@
  */
 
 import { spawn } from 'node:child_process';
+import http from 'node:http';
+import https from 'node:https';
 import net from 'node:net';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const shellRepoRoot = process.cwd();
 const mfRoot = path.resolve(shellRepoRoot, '..'); // mf-repos/
 
-// Migration note:
-// - Under Vite, remotes required `build --watch` + `preview` because `remoteEntry.js` was not reliably served by `vite dev`.
-// - Under Webpack Module Federation, `webpack serve` reliably serves `/remoteEntry.js`, so we can run each remote in normal dev mode.
-const remotes = [
-  { name: 'auth', cwd: path.join(mfRoot, 'shophub-auth'), port: 5174, remoteEntryUrl: 'http://localhost:5174/remoteEntry.js' },
-  {
-    name: 'catalog',
-    cwd: path.join(mfRoot, 'shophub-catalog'),
-    port: 5175,
-    remoteEntryUrl: 'http://localhost:5175/remoteEntry.js',
-  },
-  {
-    name: 'checkout',
-    cwd: path.join(mfRoot, 'shophub-checkout'),
-    port: 5176,
-    remoteEntryUrl: 'http://localhost:5176/remoteEntry.js',
-  },
-];
+// IMPORTANT:
+// Remotes/services are now config-driven, so you can add 5+ remotes (or non-MFE servers)
+// without editing this orchestration script.
+const servicesConfigPath = path.join(shellRepoRoot, 'scripts', 'dev-services.mjs');
+const { services, shell } = await import(pathToFileURL(servicesConfigPath).toString());
+
+/** @type {Array<{kind?: string, name: string, cwd: string, port?: number, start: {command: string, args: string[]}, readyUrl?: string}>} */
+const servicesToStart = services.map((s) => ({
+  ...s,
+  // Reason: `dev-services.mjs` keeps `cwd` as a repo folder name; make it absolute here.
+  cwd: path.join(mfRoot, s.cwd),
+}));
+
+const shellService = {
+  ...shell,
+  cwd: path.join(mfRoot, shell.cwd),
+};
 
 /** @type {Array<import('node:child_process').ChildProcess>} */
 const children = [];
@@ -89,12 +91,38 @@ function isPortInUse(port, host = '127.0.0.1') {
 
 async function waitForHttpOk(url, { timeoutMs = 60_000, intervalMs = 250 } = {}) {
   const start = Date.now();
+  const u = new URL(url);
+  const client = u.protocol === 'https:' ? https : http;
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
-      // Reason: some bundlers may return 200 before the full body is streamed; for our purpose, `ok` is enough.
-      const res = await fetch(url, { method: 'GET' });
-      if (res.ok) return true;
+      // Reason: avoid relying on global `fetch` (Node version differences); use built-in http/https.
+      // eslint-disable-next-line no-await-in-loop
+      const ok = await new Promise((resolve) => {
+        const req = client.request(
+          {
+            method: 'GET',
+            hostname: u.hostname,
+            port: u.port,
+            path: `${u.pathname}${u.search}`,
+            timeout: 5_000,
+            headers: { Connection: 'close' },
+          },
+          (res) => {
+            // Treat any 2xx/3xx as "ready".
+            const isOk = res.statusCode && res.statusCode >= 200 && res.statusCode < 400;
+            res.resume(); // drain
+            resolve(Boolean(isOk));
+          },
+        );
+        req.on('timeout', () => {
+          req.destroy(new Error('timeout'));
+          resolve(false);
+        });
+        req.on('error', () => resolve(false));
+        req.end();
+      });
+      if (ok) return true;
     } catch {
       // ignore and retry until timeout
     }
@@ -132,7 +160,10 @@ process.on('SIGTERM', () => {
 });
 
 // Pre-flight: fail fast if ports are already occupied (usually from a previous `dev:all` run).
-const requiredPorts = [5173, 5174, 5175, 5176];
+const requiredPorts = [
+  shellService.port,
+  ...servicesToStart.map((s) => s.port).filter((p) => typeof p === 'number'),
+].filter(Boolean);
 const inUse = [];
 for (const p of requiredPorts) {
   // eslint-disable-next-line no-await-in-loop
@@ -145,21 +176,27 @@ if (inUse.length) {
   process.exit(1);
 }
 
-process.stderr.write('[dev:all] Starting remote dev servers...\n');
-for (const r of remotes) {
-  startService({ name: r.name, cwd: r.cwd, command: 'npm', args: ['run', 'dev'] });
+process.stderr.write('[dev:all] Starting configured dev services...\n');
+for (const s of servicesToStart) {
+  startService({ name: s.name, cwd: s.cwd, command: s.start.command, args: s.start.args });
 }
 
-// Wait for remoteEntry to be served before starting the shell.
-for (const r of remotes) {
+// Wait for readiness checks before starting the shell.
+for (const s of servicesToStart) {
+  if (!s.readyUrl) continue;
   // eslint-disable-next-line no-await-in-loop
-  await waitForHttpOk(r.remoteEntryUrl).catch((e) => {
-    process.stderr.write(`[dev:all] Failed waiting for ${r.name} remoteEntry: ${e.message}\n`);
-    shutdown('remoteEntry not reachable');
+  await waitForHttpOk(s.readyUrl).catch((e) => {
+    process.stderr.write(`[dev:all] Failed waiting for ${s.name} readiness: ${e.message}\n`);
+    shutdown('service not reachable');
     process.exit(1);
   });
 }
 
 process.stderr.write('[dev:all] Starting shell dev server...\n');
-startService({ name: 'shell', cwd: path.join(mfRoot, 'shophub-shell'), command: 'npm', args: ['run', 'dev'] });
+startService({
+  name: shellService.name,
+  cwd: shellService.cwd,
+  command: shellService.start.command,
+  args: shellService.start.args,
+});
 

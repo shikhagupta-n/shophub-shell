@@ -30,12 +30,14 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useCart } from '../contexts/CartContext.jsx';
+import { useWishlist } from '../contexts/WishlistContext.jsx';
 import attemptTracker from '../utils/attemptTracker.js';
 
 const Navbar = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
   const { getCartItemCount } = useCart();
+  const { wishlistCount } = useWishlist();
   const [anchorEl, setAnchorEl] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -322,6 +324,7 @@ const Navbar = () => {
               {/* Wishlist Icon */}
               <IconButton
                 color="inherit"
+                onClick={() => handleNavigation('/wishlist')}
                 sx={{ 
                   color: 'text.primary',
                   '&:hover': {
@@ -329,7 +332,21 @@ const Navbar = () => {
                   },
                 }}
               >
-                <FavoriteIcon />
+                <Badge
+                  badgeContent={wishlistCount}
+                  color="secondary"
+                  sx={{
+                    '& .MuiBadge-badge': {
+                      fontSize: '0.7rem',
+                      minWidth: '18px',
+                      height: '18px',
+                      borderRadius: '9px',
+                      fontWeight: 600,
+                    },
+                  }}
+                >
+                  <FavoriteIcon />
+                </Badge>
               </IconButton>
 
               {/* Cart Icon */}
@@ -418,6 +435,18 @@ const Navbar = () => {
                       </Box>
                     </MenuItem>
                     <Divider />
+                    <MenuItem
+                      onClick={() => {
+                        // Reason: account pages live in a dedicated MFE (`shophub-account`).
+                        handleUserMenuClose();
+                        navigate('/account');
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <PersonIcon fontSize="small" />
+                        <Typography>My Account</Typography>
+                      </Box>
+                    </MenuItem>
                     <MenuItem onClick={handleLogout}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <LogoutIcon fontSize="small" />

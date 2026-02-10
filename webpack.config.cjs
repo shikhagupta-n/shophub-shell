@@ -38,6 +38,37 @@ module.exports = (_env, argv) => {
   const authRemoteUrl = process.env.SHOPHUB_AUTH_REMOTE_URL ?? 'http://localhost:5174/remoteEntry.js';
   const catalogRemoteUrl = process.env.SHOPHUB_CATALOG_REMOTE_URL ?? 'http://localhost:5175/remoteEntry.js';
   const checkoutRemoteUrl = process.env.SHOPHUB_CHECKOUT_REMOTE_URL ?? 'http://localhost:5176/remoteEntry.js';
+  const wishlistRemoteUrl = process.env.SHOPHUB_WISHLIST_REMOTE_URL ?? 'http://localhost:5177/remoteEntry.js';
+  const accountRemoteUrl = process.env.SHOPHUB_ACCOUNT_REMOTE_URL ?? 'http://localhost:5178/remoteEntry.js';
+
+  // Support 5+ remotes without editing this config:
+  // - Set `SHOPHUB_REMOTES` to a JSON object mapping remoteName -> remoteEntryUrl
+  //   Example:
+  //   SHOPHUB_REMOTES='{"auth":"https://auth.netlify.app/remoteEntry.js","catalog":"https://catalog.netlify.app/remoteEntry.js","checkout":"https://checkout.netlify.app/remoteEntry.js","search":"https://search.netlify.app/remoteEntry.js"}'
+  function parseJsonEnv(varName) {
+    const raw = process.env[varName];
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn(`[shophub-shell] Ignoring invalid ${varName} JSON: ${e?.message ?? e}`);
+      return null;
+    }
+  }
+
+  const extraRemotes = parseJsonEnv('SHOPHUB_REMOTES') ?? {};
+  const remoteUrls = {
+    auth: authRemoteUrl,
+    catalog: catalogRemoteUrl,
+    checkout: checkoutRemoteUrl,
+    wishlist: wishlistRemoteUrl,
+    account: accountRemoteUrl,
+    ...extraRemotes,
+  };
+  const mfRemotes = Object.fromEntries(
+    Object.entries(remoteUrls).map(([remoteName, remoteEntryUrl]) => [remoteName, `${remoteName}@${remoteEntryUrl}`]),
+  );
 
   return {
     name: 'shophub-shell',
@@ -81,12 +112,7 @@ module.exports = (_env, argv) => {
     plugins: [
       new ModuleFederationPlugin({
         name: 'shophub-shell',
-        remotes: {
-          // Note: the `auth@` prefix is required by Webpack Module Federation.
-          auth: `auth@${authRemoteUrl}`,
-          catalog: `catalog@${catalogRemoteUrl}`,
-          checkout: `checkout@${checkoutRemoteUrl}`,
-        },
+        remotes: mfRemotes,
         // IMPORTANT: shell owns state; share runtime libs as singletons.
         shared: {
           react: { singleton: true, eager: true, requiredVersion: deps.react },

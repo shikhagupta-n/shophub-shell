@@ -6,6 +6,7 @@ import { Box, CircularProgress, CssBaseline } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import { CartProvider, useCart } from './contexts/CartContext.jsx';
 import { SnackbarProvider, useSnackbar } from './contexts/SnackbarContext.jsx';
+import { WishlistProvider, useWishlist } from './contexts/WishlistContext.jsx';
 import { theme } from './theme/theme.js';
 import Navbar from './components/Navbar.jsx';
 
@@ -21,6 +22,11 @@ const About = React.lazy(() => import('catalog/About'));
 const Cart = React.lazy(() => import('checkout/Cart'));
 const Checkout = React.lazy(() => import('checkout/Checkout'));
 const OrderConfirmation = React.lazy(() => import('checkout/OrderConfirmation'));
+
+// New remotes (added):
+const Wishlist = React.lazy(() => import('wishlist/Wishlist'));
+const Account = React.lazy(() => import('account/Account'));
+const Addresses = React.lazy(() => import('account/Addresses'));
 
 function FullPageLoader() {
   return (
@@ -45,6 +51,7 @@ function AppLayout() {
   // Note: `useAuth().loading` covers auth bootstrapping; login/signup each manage their own async state.
   const { cartItems, getCartTotal, addToCart, removeFromCart, updateQuantity, isCartEmpty, clearCart } = useCart();
   const { showError, showSuccess } = useSnackbar();
+  const { wishlistItems, addToWishlist, removeFromWishlist, clearWishlist, isInWishlist } = useWishlist();
 
   if (loading) return <FullPageLoader />;
 
@@ -77,13 +84,23 @@ function AppLayout() {
 
             <Route
               path="/products"
-              element={<Products addToCart={addToCart} showError={showError} />}
+              element={
+                <Products
+                  addToCart={addToCart}
+                  showError={showError}
+                  // Reason: catalog can add products to wishlist without owning wishlist state.
+                  addToWishlist={addToWishlist}
+                  isInWishlist={isInWishlist}
+                />
+              }
             />
             <Route
               path="/product/:id"
               element={
                 <ProductDetail
                   addToCart={addToCart}
+                  addToWishlist={addToWishlist}
+                  isInWishlist={isInWishlist}
                   cartItems={cartItems}
                   showError={showError}
                   showSuccess={showSuccess}
@@ -132,6 +149,40 @@ function AppLayout() {
               }
             />
 
+            <Route
+              path="/wishlist"
+              element={
+                <ProtectedRoute>
+                  <Wishlist
+                    items={wishlistItems}
+                    removeFromWishlist={removeFromWishlist}
+                    clearWishlist={clearWishlist}
+                    // Optional: let wishlist add items to cart (shell owns cart).
+                    addToCart={addToCart}
+                    showError={showError}
+                    showSuccess={showSuccess}
+                  />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/account"
+              element={
+                <ProtectedRoute>
+                  <Account />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/account/addresses"
+              element={
+                <ProtectedRoute>
+                  <Addresses />
+                </ProtectedRoute>
+              }
+            />
+
             <Route path="/" element={<Navigate to="/products" replace />} />
           </Routes>
         </Suspense>
@@ -147,9 +198,11 @@ export default function App() {
       <SnackbarProvider>
         <AuthProvider>
           <CartProvider>
-            <Router>
-              <AppLayout />
-            </Router>
+            <WishlistProvider>
+              <Router>
+                <AppLayout />
+              </Router>
+            </WishlistProvider>
           </CartProvider>
         </AuthProvider>
       </SnackbarProvider>
