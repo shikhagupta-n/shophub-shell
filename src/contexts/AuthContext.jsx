@@ -6,6 +6,7 @@ import { useSnackbar } from './SnackbarContext';
 const AuthContext = createContext();
 
 // Custom hook to use authentication context
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

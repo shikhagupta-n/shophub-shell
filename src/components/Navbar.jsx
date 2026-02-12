@@ -64,16 +64,11 @@ const Navbar = () => {
     return LOGICAL_ERRORS[idx];
   };
 
-  const isFailModeOn = () => {
-    try {
-      return JSON.parse(localStorage.getItem('ecommerce_fail_mode') || 'false') === true;
-    } catch {
-      return false;
-    }
-  };
-
   const maybeInjectLogicalError = (event) => {
-    if (!isFailModeOn()) return false;
+    // Reason: fail mode is a debug-only feature; production must never inject logical errors.
+    if (!attemptTracker.isFailModeAvailable()) return false;
+    if (!attemptTracker.getFailMode()) return false;
+
     const target = event?.target;
     if (!(target instanceof Element)) return false;
     if (target.closest('[data-skip-logical-error="true"]')) return false;
@@ -91,8 +86,14 @@ const Navbar = () => {
 
     // Send to Zipy (if installed) with a real stacktrace pointing to this file.
     if (window.zipy) {
-      window.zipy.logMessage('Logical error injected (fail mode)', { code: chosen.code, routeRemoteHint: 'shell', buttonText });
-      window.zipy.logException(err);
+      // Reason: observability SDKs should never break the app; protect against unexpected SDK failures.
+      try {
+        window.zipy.logMessage('Logical error injected (fail mode)', { code: chosen.code, routeRemoteHint: 'shell', buttonText });
+        window.zipy.logException(err);
+      } catch (zipyError) {
+        // eslint-disable-next-line no-console
+        console.warn('[shell][LogicalError] zipy logging failed (ignored)', zipyError);
+      }
     }
 
     // eslint-disable-next-line no-console
@@ -427,20 +428,22 @@ const Navbar = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1,
               }}>
               {/* Fail Mode Checkbox - Desktop Only */}
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={failModeEnabled}
-                    onChange={(e) => setFailMode(e.target.checked)}
-                    // Reason: allow toggling fail mode OFF even when logical error injection is active.
-                    inputProps={{ 'data-skip-logical-error': 'true' }}
-                  />
-                }
-                sx={{ 
-                  ml: 1,
-                  display: { xs: 'none', md: 'flex' }, // Hide on mobile, show on desktop
-                }}
-              />
+              {attemptTracker.isFailModeAvailable() && (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={failModeEnabled}
+                      onChange={(e) => setFailMode(e.target.checked)}
+                      // Reason: allow toggling fail mode OFF even when logical error injection is active.
+                      inputProps={{ 'data-skip-logical-error': 'true' }}
+                    />
+                  }
+                  sx={{
+                    ml: 1,
+                    display: { xs: 'none', md: 'flex' }, // Hide on mobile, show on desktop
+                  }}
+                />
+              )}
 
               {/* Search Icon */}
               <IconButton
@@ -757,20 +760,22 @@ const Navbar = () => {
               </Button>
               
               {/* Fail Mode Checkbox for Mobile */}
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={failModeEnabled}
-                    onChange={(e) => setFailMode(e.target.checked)}
-                    // Reason: allow toggling fail mode OFF even when logical error injection is active.
-                    inputProps={{ 'data-skip-logical-error': 'true' }}
-                  />
-                }
-                sx={{ 
-                  mt: 2,
-                  display: { xs: 'flex', md: 'none' }, // Show on mobile, hide on desktop
-                }}
-              />
+              {attemptTracker.isFailModeAvailable() && (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={failModeEnabled}
+                      onChange={(e) => setFailMode(e.target.checked)}
+                      // Reason: allow toggling fail mode OFF even when logical error injection is active.
+                      inputProps={{ 'data-skip-logical-error': 'true' }}
+                    />
+                  }
+                  sx={{
+                    mt: 2,
+                    display: { xs: 'flex', md: 'none' }, // Show on mobile, hide on desktop
+                  }}
+                />
+              )}
               
               {!isAuthenticated && (
                 <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
