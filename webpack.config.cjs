@@ -35,6 +35,14 @@ function getInstalledVersion(pkgName) {
 module.exports = (_env, argv) => {
   const isProd = argv.mode === 'production';
 
+  // Zipy config (optional).
+  // Reason: enable sourcemap-mapped stack traces in Zipy by ensuring `zipy.init(..., { releaseVer })`
+  // uses the same version as your `zipy-cli --releaseVer` uploads.
+  const zipySdkUrl =
+    process.env.ZIPY_SDK_URL ?? 'https://storage.googleapis.com/zipy-cdn-staging/sdk/latest/zipy.min.umd.js';
+  const zipyProjectKey = process.env.ZIPY_PROJECT_KEY ?? '';
+  const zipyReleaseVer = process.env.ZIPY_RELEASE_VER ?? process.env.SHOPHUB_RELEASE_VER ?? pkg.version;
+
   const authRemoteUrl = process.env.SHOPHUB_AUTH_REMOTE_URL ?? 'http://localhost:5174/remoteEntry.js';
   const catalogRemoteUrl = process.env.SHOPHUB_CATALOG_REMOTE_URL ?? 'http://localhost:5175/remoteEntry.js';
   const checkoutRemoteUrl = process.env.SHOPHUB_CHECKOUT_REMOTE_URL ?? 'http://localhost:5176/remoteEntry.js';
@@ -132,6 +140,10 @@ module.exports = (_env, argv) => {
 
       new HtmlWebpackPlugin({
         template: path.resolve(__dirname, 'index.html'),
+        // These options become available to the HTML template.
+        zipySdkUrl,
+        zipyProjectKey,
+        zipyReleaseVer,
       }),
 
       // Vite used to copy `public/` into `dist/`. Keep that behavior (Netlify _redirects, vite.svg, etc).

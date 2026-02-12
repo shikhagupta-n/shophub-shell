@@ -135,6 +135,13 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/fail-500') {
+      // Reason: deterministic 5xx endpoint for frontend error monitoring tests (Zipy, etc.).
+      sendJson(res, 500, { error: 'simulated_failure', requestId });
+      log('request', { requestId, method: req.method, path: url.pathname, status: 500, ms: Date.now() - startedAt });
+      return;
+    }
+
     sendText(res, 404, 'Not Found');
     log('request', { requestId, method: req.method, path: url.pathname, status: 404, ms: Date.now() - startedAt });
   } catch (err) {

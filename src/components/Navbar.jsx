@@ -24,6 +24,7 @@ import {
   ExitToApp as LogoutIcon,
   Search as SearchIcon,
   Favorite as FavoriteIcon,
+  BugReport as BugReportIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
@@ -42,6 +43,11 @@ const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [failModeEnabled, setFailModeEnabled] = useState(attemptTracker.getFailMode());
+
+  // Show Error Lab button only on localhost.
+  // Reason: Error Lab is a debugging tool and shouldn't be visible to real users by default.
+  const showErrorLab = typeof window !== 'undefined'
+    && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
   // Handle scroll effect for navbar
   useEffect(() => {
@@ -289,6 +295,33 @@ const Navbar = () => {
               >
                 ABOUT
               </Button>
+
+              {showErrorLab && (
+                <Button
+                  color="inherit"
+                  startIcon={<BugReportIcon />}
+                  onClick={() => {
+                    // Reason: `?errorlab=1` enables the lab for this browser session.
+                    handleNavigation('/debug/errors?errorlab=1');
+                  }}
+                  sx={{
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    color: 'text.primary',
+                    borderRadius: 3,
+                    px: 3,
+                    py: 1.5,
+                    border: '1px dashed rgba(0, 0, 0, 0.18)',
+                    '&:hover': {
+                      background: 'rgba(0, 0, 0, 0.03)',
+                      borderColor: 'rgba(0, 0, 0, 0.28)',
+                    },
+                  }}
+                >
+                  Error Lab
+                </Button>
+              )}
             </Box>
 
             {/* Right side - Actions */}
@@ -570,6 +603,25 @@ const Navbar = () => {
               >
                 ABOUT
               </Button>
+
+              {showErrorLab && (
+                <Button
+                  fullWidth
+                  variant="text"
+                  onClick={() => handleNavigation('/debug/errors?errorlab=1')}
+                  sx={{
+                    justifyContent: 'flex-start',
+                    textTransform: 'none',
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                    color: 'text.primary',
+                    py: 1.5,
+                  }}
+                  startIcon={<BugReportIcon />}
+                >
+                  Error Lab
+                </Button>
+              )}
               
               {/* Fail Mode Checkbox for Mobile */}
               <FormControlLabel

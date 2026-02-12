@@ -9,6 +9,7 @@ import { SnackbarProvider, useSnackbar } from './contexts/SnackbarContext.jsx';
 import { WishlistProvider, useWishlist } from './contexts/WishlistContext.jsx';
 import { theme } from './theme/theme.js';
 import Navbar from './components/Navbar.jsx';
+import ErrorLab from './pages/ErrorLab.jsx';
 
 // Remote page modules (loaded at runtime).
 const Login = React.lazy(() => import('auth/Login'));
@@ -184,6 +185,7 @@ function AppLayout() {
             />
 
             <Route path="/" element={<Navigate to="/products" replace />} />
+            <Route path="/debug/errors/*" element={<ErrorLab />} />
           </Routes>
         </Suspense>
       </Box>
