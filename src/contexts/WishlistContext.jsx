@@ -73,6 +73,7 @@ export function WishlistProvider({ children }) {
   return <WishlistContext.Provider value={api}>{children}</WishlistContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWishlist() {
   const ctx = useContext(WishlistContext);
   if (!ctx) throw new Error('useWishlist must be used inside <WishlistProvider>');
