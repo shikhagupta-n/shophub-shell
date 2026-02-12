@@ -144,6 +144,9 @@ module.exports = (_env, argv) => {
         zipySdkUrl,
         zipyProjectKey,
         zipyReleaseVer,
+        // IMPORTANT: ensure injected asset URLs are absolute (e.g. `/assets/main.js`),
+        // otherwise deep routes like `/debug/remotes` would try to load `/debug/assets/main.js` and 404.
+        publicPath: '/',
       }),
 
       // Vite used to copy `public/` into `dist/`. Keep that behavior (Netlify _redirects, vite.svg, etc).

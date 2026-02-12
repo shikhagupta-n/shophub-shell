@@ -9,7 +9,7 @@ import { SnackbarProvider, useSnackbar } from './contexts/SnackbarContext.jsx';
 import { WishlistProvider, useWishlist } from './contexts/WishlistContext.jsx';
 import { theme } from './theme/theme.js';
 import Navbar from './components/Navbar.jsx';
-import ErrorLab from './pages/ErrorLab.jsx';
+import RemoteShowcase from './pages/RemoteShowcase.jsx';
 
 // Remote page modules (loaded at runtime).
 const Login = React.lazy(() => import('auth/Login'));
@@ -185,7 +185,8 @@ function AppLayout() {
             />
 
             <Route path="/" element={<Navigate to="/products" replace />} />
-            <Route path="/debug/errors/*" element={<ErrorLab />} />
+            {/* Debug/diagnostics page: render multiple remotes on one screen. */}
+            <Route path="/debug/remotes" element={<RemoteShowcase />} />
           </Routes>
         </Suspense>
       </Box>

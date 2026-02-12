@@ -24,7 +24,7 @@ import {
   ExitToApp as LogoutIcon,
   Search as SearchIcon,
   Favorite as FavoriteIcon,
-  BugReport as BugReportIcon,
+  Apps as AppsIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
@@ -40,14 +40,65 @@ const Navbar = () => {
   const { getCartItemCount } = useCart();
   const { wishlistCount } = useWishlist();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [remotesAnchorEl, setRemotesAnchorEl] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [failModeEnabled, setFailModeEnabled] = useState(attemptTracker.getFailMode());
 
-  // Show Error Lab button only on localhost.
-  // Reason: Error Lab is a debugging tool and shouldn't be visible to real users by default.
-  const showErrorLab = typeof window !== 'undefined'
-    && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  // Logical errors (shell / header).
+  // Reason: if a user is interacting with the header while fail mode is enabled, the stacktrace should
+  // point to shell/header code, not a shared util.
+  const LOGICAL_ERRORS = [
+    { code: 'LOGIC_001', message: 'Incorrect conditional flow: action allowed when preconditions are not met.' },
+    { code: 'LOGIC_002', message: 'Wrong state transition: attempted to update UI state from a stale snapshot.' },
+    { code: 'LOGIC_003', message: 'Broken UI rendering logic: computed view model is inconsistent with inputs.' },
+    { code: 'LOGIC_004', message: 'Invalid business rule: checkout/wishlist operation violates domain constraints.' },
+    { code: 'LOGIC_005', message: 'Routing logic error: navigation target resolved to an unexpected route.' },
+  ];
+  // Keep a component-scoped counter so we generate one logical error per click (rotating).
+  // Reason: user asked for errors one-by-one, not all together.
+  const logicalErrorState = React.useRef({ n: 0 });
+  const nextLogicalError = () => {
+    const idx = logicalErrorState.current.n % LOGICAL_ERRORS.length;
+    logicalErrorState.current.n += 1;
+    return LOGICAL_ERRORS[idx];
+  };
+
+  const isFailModeOn = () => {
+    try {
+      return JSON.parse(localStorage.getItem('ecommerce_fail_mode') || 'false') === true;
+    } catch {
+      return false;
+    }
+  };
+
+  const maybeInjectLogicalError = (event) => {
+    if (!isFailModeOn()) return false;
+    const target = event?.target;
+    if (!(target instanceof Element)) return false;
+    if (target.closest('[data-skip-logical-error="true"]')) return false;
+    const buttonEl = target.closest('button, [role="button"], a, input[type="button"], input[type="submit"]');
+    if (!buttonEl) return false;
+
+    // Block normal flow so only logical errors are produced while fail mode is enabled.
+    event.preventDefault();
+    event.stopPropagation();
+
+    const chosen = nextLogicalError();
+    const buttonText = (buttonEl.getAttribute('aria-label') || buttonEl.textContent || '').trim().slice(0, 80) || 'unknown';
+    const err = new Error(`[shell] ${chosen.code}: ${chosen.message}`);
+    err.name = 'ShophubLogicalError';
+
+    // Send to Zipy (if installed) with a real stacktrace pointing to this file.
+    if (window.zipy) {
+      window.zipy.logMessage('Logical error injected (fail mode)', { code: chosen.code, routeRemoteHint: 'shell', buttonText });
+      window.zipy.logException(err);
+    }
+
+    // eslint-disable-next-line no-console
+    console.error('[shell][LogicalError]', { ...chosen, buttonText });
+    return true;
+  };
 
   // Handle scroll effect for navbar
   useEffect(() => {
@@ -67,6 +118,20 @@ const Navbar = () => {
 
   const handleUserMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleRemotesMenuOpen = (event) => {
+    setRemotesAnchorEl(event.currentTarget);
+  };
+
+  const handleRemotesMenuClose = () => {
+    setRemotesAnchorEl(null);
+  };
+
+  const handleRemoteNavigation = (path) => {
+    // Close menus before navigating.
+    handleRemotesMenuClose();
+    handleNavigation(path);
   };
 
   // Handle logout - implements fail/success pattern
@@ -104,6 +169,10 @@ const Navbar = () => {
       <AppBar 
         position="fixed" 
         elevation={0}
+        onClickCapture={(e) => {
+          // Reason: inject logical errors from shell/header when fail mode is ON.
+          maybeInjectLogicalError(e);
+        }}
         sx={{
           background: scrolled 
             ? 'rgba(255, 255, 255, 0.98)' 
@@ -296,32 +365,62 @@ const Navbar = () => {
                 ABOUT
               </Button>
 
-              {showErrorLab && (
-                <Button
-                  color="inherit"
-                  startIcon={<BugReportIcon />}
-                  onClick={() => {
-                    // Reason: `?errorlab=1` enables the lab for this browser session.
-                    handleNavigation('/debug/errors?errorlab=1');
-                  }}
-                  sx={{
-                    textTransform: 'none',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    color: 'text.primary',
+              {/* Quick navigation to remote-owned pages */}
+              <Button
+                color="inherit"
+                startIcon={<AppsIcon />}
+                onClick={handleRemotesMenuOpen}
+                sx={{
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  color: 'text.primary',
+                  borderRadius: 3,
+                  px: 3,
+                  py: 1.5,
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  '&:hover': {
+                    background: 'rgba(0, 0, 0, 0.03)',
+                    borderColor: 'rgba(0, 0, 0, 0.18)',
+                  },
+                }}
+              >
+                Remotes
+              </Button>
+
+              <Menu
+                anchorEl={remotesAnchorEl}
+                open={Boolean(remotesAnchorEl)}
+                onClose={handleRemotesMenuClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                PaperProps={{
+                  sx: {
+                    mt: 1,
+                    minWidth: 260,
                     borderRadius: 3,
-                    px: 3,
-                    py: 1.5,
-                    border: '1px dashed rgba(0, 0, 0, 0.18)',
-                    '&:hover': {
-                      background: 'rgba(0, 0, 0, 0.03)',
-                      borderColor: 'rgba(0, 0, 0, 0.28)',
-                    },
-                  }}
-                >
-                  Error Lab
-                </Button>
-              )}
+                    boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.12)',
+                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                  },
+                }}
+              >
+                <MenuItem onClick={() => handleRemoteNavigation('/login')}>Auth → Login</MenuItem>
+                <MenuItem onClick={() => handleRemoteNavigation('/signup')}>Auth → Sign up</MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleRemoteNavigation('/products')}>Catalog → Products</MenuItem>
+                <MenuItem onClick={() => handleRemoteNavigation('/collections')}>Catalog → Collections</MenuItem>
+                <MenuItem onClick={() => handleRemoteNavigation('/about')}>Catalog → About</MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleRemoteNavigation('/cart')}>Checkout → Cart</MenuItem>
+                <MenuItem onClick={() => handleRemoteNavigation('/checkout')}>Checkout → Checkout</MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleRemoteNavigation('/wishlist')}>Wishlist → Wishlist</MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleRemoteNavigation('/account')}>Account → Profile</MenuItem>
+                <MenuItem onClick={() => handleRemoteNavigation('/account/addresses')}>Account → Addresses</MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleRemoteNavigation('/debug/remotes')}>Shell → Remote Showcase</MenuItem>
+              </Menu>
             </Box>
 
             {/* Right side - Actions */}
@@ -333,6 +432,8 @@ const Navbar = () => {
                   <Checkbox
                     checked={failModeEnabled}
                     onChange={(e) => setFailMode(e.target.checked)}
+                    // Reason: allow toggling fail mode OFF even when logical error injection is active.
+                    inputProps={{ 'data-skip-logical-error': 'true' }}
                   />
                 }
                 sx={{ 
@@ -563,6 +664,57 @@ const Navbar = () => {
               <Button
                 fullWidth
                 variant="text"
+                onClick={handleRemotesMenuOpen}
+                sx={{
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  fontSize: '1.1rem',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  py: 1.5,
+                }}
+                startIcon={<AppsIcon />}
+              >
+                REMOTES
+              </Button>
+
+              <Menu
+                anchorEl={remotesAnchorEl}
+                open={Boolean(remotesAnchorEl)}
+                onClose={handleRemotesMenuClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                PaperProps={{
+                  sx: {
+                    mt: 1,
+                    minWidth: 260,
+                    borderRadius: 3,
+                    boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.12)',
+                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                  },
+                }}
+              >
+                <MenuItem onClick={() => handleRemoteNavigation('/login')}>Auth → Login</MenuItem>
+                <MenuItem onClick={() => handleRemoteNavigation('/signup')}>Auth → Sign up</MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleRemoteNavigation('/products')}>Catalog → Products</MenuItem>
+                <MenuItem onClick={() => handleRemoteNavigation('/collections')}>Catalog → Collections</MenuItem>
+                <MenuItem onClick={() => handleRemoteNavigation('/about')}>Catalog → About</MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleRemoteNavigation('/cart')}>Checkout → Cart</MenuItem>
+                <MenuItem onClick={() => handleRemoteNavigation('/checkout')}>Checkout → Checkout</MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleRemoteNavigation('/wishlist')}>Wishlist → Wishlist</MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleRemoteNavigation('/account')}>Account → Profile</MenuItem>
+                <MenuItem onClick={() => handleRemoteNavigation('/account/addresses')}>Account → Addresses</MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleRemoteNavigation('/debug/remotes')}>Shell → Remote Showcase</MenuItem>
+              </Menu>
+
+              <Button
+                fullWidth
+                variant="text"
                 onClick={() => handleNavigation('/products')}
                 sx={{ 
                   justifyContent: 'flex-start',
@@ -603,25 +755,6 @@ const Navbar = () => {
               >
                 ABOUT
               </Button>
-
-              {showErrorLab && (
-                <Button
-                  fullWidth
-                  variant="text"
-                  onClick={() => handleNavigation('/debug/errors?errorlab=1')}
-                  sx={{
-                    justifyContent: 'flex-start',
-                    textTransform: 'none',
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                    color: 'text.primary',
-                    py: 1.5,
-                  }}
-                  startIcon={<BugReportIcon />}
-                >
-                  Error Lab
-                </Button>
-              )}
               
               {/* Fail Mode Checkbox for Mobile */}
               <FormControlLabel
@@ -629,6 +762,8 @@ const Navbar = () => {
                   <Checkbox
                     checked={failModeEnabled}
                     onChange={(e) => setFailMode(e.target.checked)}
+                    // Reason: allow toggling fail mode OFF even when logical error injection is active.
+                    inputProps={{ 'data-skip-logical-error': 'true' }}
                   />
                 }
                 sx={{ 
