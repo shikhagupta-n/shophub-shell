@@ -16,7 +16,7 @@ class AttemptTracker {
     try {
       const saved = localStorage.getItem(this.storageKey);
       return saved ? JSON.parse(saved) : {};
-    } catch (error) {
+    } catch {
       // Error loading attempt counts.
       return {};
     }
@@ -26,7 +26,7 @@ class AttemptTracker {
   saveCounts() {
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(this.counts));
-    } catch (error) {
+    } catch {
       // Error saving attempt counts.
     }
   }
@@ -48,7 +48,7 @@ class AttemptTracker {
     try {
       const saved = localStorage.getItem('ecommerce_fail_mode');
       return saved ? JSON.parse(saved) : false; // Default to false (success mode)
-    } catch (error) {
+    } catch {
       // Error loading fail mode setting.
       return false;
     }
@@ -58,7 +58,7 @@ class AttemptTracker {
   saveFailMode() {
     try {
       localStorage.setItem('ecommerce_fail_mode', JSON.stringify(this.failModeEnabled));
-    } catch (error) {
+    } catch {
       // Error saving fail mode setting.
     }
   }
@@ -83,7 +83,7 @@ class AttemptTracker {
   }
 
   // Check if current attempt should fail (odd attempts fail, even attempts succeed)
-  shouldFail(action) {
+  shouldFail() {
     // New behavior:
     // - If fail mode is enabled → ALWAYS fail
     // - If fail mode is disabled → ALWAYS succeed
@@ -96,7 +96,7 @@ class AttemptTracker {
   // Get attempt info for an action
   getAttemptInfo(action) {
     const count = this.getAttemptCount(action);
-    const shouldFail = this.shouldFail(action);
+    const shouldFail = this.shouldFail();
     return {
       count,
       shouldFail,

@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+// Reason: context modules intentionally export both Provider components and hooks (e.g. `useSnackbar`).
 import React, { createContext, useContext, useState } from 'react';
 import { Snackbar, Alert, Box } from '@mui/material';
 
