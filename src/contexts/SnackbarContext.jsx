@@ -1,3 +1,6 @@
+/* eslint-disable react-refresh/only-export-components */
+// Reason: context modules conventionally export both Provider components and hooks; this project is not relying on
+// React Fast Refresh invariants here, and enforcing "components-only exports" would require a noisy refactor.
 import React, { createContext, useContext, useState } from 'react';
 import { Snackbar, Alert, Box } from '@mui/material';
 

@@ -124,7 +124,6 @@ const Navbar = () => {
       window.zipy.logException(err);
     }
 
-    // eslint-disable-next-line no-console
     console.error('[shell][LogicalError]', { ...chosen, buttonText });
     return true;
   };
@@ -169,14 +168,12 @@ const Navbar = () => {
       window.zipy.logMessage('MF runtime/config error triggered', context);
       window.zipy.logException(err);
     }
-    // eslint-disable-next-line no-console
     console.error('[MF][RuntimeConfigError]', context, err);
   };
 
   const triggerMFMismatchedExport = async () => {
     // Reason: this is a debug-only error injector. Never let it run in prod unless explicitly opted-in.
     if (!isMFDangerToolsEnabled) {
-      // eslint-disable-next-line no-console
       console.warn('[MF] Debug error tools disabled. Enable fail mode + add `?__mf_debug=1` to run MF injectors.', {
         nodeEnv,
         isProdBuild,
@@ -202,7 +199,6 @@ const Navbar = () => {
   const triggerMFShareScopeMismatch = async () => {
     // Reason: this is a debug-only error injector. Never let it run in prod unless explicitly opted-in.
     if (!isMFDangerToolsEnabled) {
-      // eslint-disable-next-line no-console
       console.warn('[MF] Debug error tools disabled. Enable fail mode + add `?__mf_debug=1` to run MF injectors.', {
         nodeEnv,
         isProdBuild,
@@ -221,7 +217,6 @@ const Navbar = () => {
         throw new Error('Remote container `catalog` is not available on window after import.');
       }
       // Intentionally pass a bad share scope to force an MF init error.
-      // eslint-disable-next-line no-await-in-loop
       await window.catalog.init({});
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));

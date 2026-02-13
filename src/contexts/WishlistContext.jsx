@@ -1,3 +1,6 @@
+/* eslint-disable react-refresh/only-export-components */
+// Reason: this context exports both a Provider component and a hook for consumers; keeping them co-located improves
+// maintainability, and this project does not depend on strict Fast Refresh export rules.
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 /**
