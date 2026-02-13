@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+// Reason: context modules intentionally export both Provider components and hooks (e.g. `useAuth`).
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import attemptTracker from '../utils/attemptTracker';
 import { useSnackbar } from './SnackbarContext';

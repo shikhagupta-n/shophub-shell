@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+// Reason: context modules intentionally export both Provider components and hooks (e.g. `useWishlist`).
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 /**
