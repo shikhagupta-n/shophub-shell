@@ -45,6 +45,35 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [failModeEnabled, setFailModeEnabled] = useState(attemptTracker.getFailMode());
 
+  // Detect production builds without assuming Node polyfills exist in the browser.
+  // Reason: we ship a couple of MF error injectors for debugging; they must never be triggerable accidentally in prod.
+  const getNodeEnv = () => {
+    try {
+      // NOTE: webpack typically inlines this at build time, but we keep it defensive in case the bundler changes.
+      // eslint-disable-next-line no-undef
+      return process?.env?.NODE_ENV;
+    } catch {
+      return undefined;
+    }
+  };
+  const nodeEnv = getNodeEnv();
+  const isProdBuild = nodeEnv === 'production';
+
+  // MF "danger tools" are intentionally noisy (they trigger runtime/config errors).
+  // To avoid production incidents/alert noise, only allow them when:
+  // - non-production builds, OR
+  // - production build + fail mode enabled + explicit URL opt-in (`?__mf_debug=1`).
+  const isMFDangerToolsEnabled = (() => {
+    if (!isProdBuild) return true;
+    if (!failModeEnabled) return false;
+    try {
+      const url = new URL(window.location.href);
+      return url.searchParams.get('__mf_debug') === '1';
+    } catch {
+      return false;
+    }
+  })();
+
   // Logical errors (shell / header).
   // Reason: if a user is interacting with the header while fail mode is enabled, the stacktrace should
   // point to shell/header code, not a shared util.
@@ -95,7 +124,6 @@ const Navbar = () => {
       window.zipy.logException(err);
     }
 
-    // eslint-disable-next-line no-console
     console.error('[shell][LogicalError]', { ...chosen, buttonText });
     return true;
   };
@@ -140,23 +168,43 @@ const Navbar = () => {
       window.zipy.logMessage('MF runtime/config error triggered', context);
       window.zipy.logException(err);
     }
-    // eslint-disable-next-line no-console
     console.error('[MF][RuntimeConfigError]', context, err);
   };
 
   const triggerMFMismatchedExport = async () => {
+    // Reason: this is a debug-only error injector. Never let it run in prod unless explicitly opted-in.
+    if (!isMFDangerToolsEnabled) {
+      console.warn('[MF] Debug error tools disabled. Enable fail mode + add `?__mf_debug=1` to run MF injectors.', {
+        nodeEnv,
+        isProdBuild,
+      });
+      return;
+    }
     // Runtime/Config error: mismatched exports between host and remote.
     // We intentionally import a non-existent exposed module from a remote.
     try {
       await import('catalog/__MISSING_EXPOSED_MODULE__');
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
-      reportZipyException(e, { kind: 'mf_mismatched_exports', remote: 'catalog', request: 'catalog/__MISSING_EXPOSED_MODULE__' });
+      reportZipyException(e, {
+        kind: 'mf_mismatched_exports',
+        remote: 'catalog',
+        request: 'catalog/__MISSING_EXPOSED_MODULE__',
+        nodeEnv,
+      });
       return;
     }
   };
 
   const triggerMFShareScopeMismatch = async () => {
+    // Reason: this is a debug-only error injector. Never let it run in prod unless explicitly opted-in.
+    if (!isMFDangerToolsEnabled) {
+      console.warn('[MF] Debug error tools disabled. Enable fail mode + add `?__mf_debug=1` to run MF injectors.', {
+        nodeEnv,
+        isProdBuild,
+      });
+      return;
+    }
     // Runtime/Config error: wrong package version sharing / share-scope mismatch.
     // Strategy:
     // 1) Ensure the remote container is loaded (creates `window.catalog`).
@@ -169,11 +217,15 @@ const Navbar = () => {
         throw new Error('Remote container `catalog` is not available on window after import.');
       }
       // Intentionally pass a bad share scope to force an MF init error.
-      // eslint-disable-next-line no-await-in-loop
       await window.catalog.init({});
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
-      reportZipyException(e, { kind: 'mf_share_scope_mismatch', remote: 'catalog', action: 'window.catalog.init({})' });
+      reportZipyException(e, {
+        kind: 'mf_share_scope_mismatch',
+        remote: 'catalog',
+        action: 'window.catalog.init({})',
+        nodeEnv,
+      });
     }
   };
 
@@ -464,25 +516,30 @@ const Navbar = () => {
                 <Divider />
                 <MenuItem onClick={() => handleRemoteNavigation('/debug/remotes')}>Shell → Remote Showcase</MenuItem>
                 <Divider />
-                {/* MF runtime/config error generators (for Zipy verification) */}
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerMFMismatchedExport();
-                  }}
-                >
-                  MF Error → Mismatched export
-                </MenuItem>
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerMFShareScopeMismatch();
-                  }}
-                >
-                  MF Error → Share scope mismatch
-                </MenuItem>
+                {/* MF runtime/config error generators (for Zipy verification). */}
+                {/* Reason: gated to prevent accidental production error injection/monitoring noise. */}
+                {isMFDangerToolsEnabled ? (
+                  <>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerMFMismatchedExport();
+                      }}
+                    >
+                      MF Error → Mismatched export
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerMFShareScopeMismatch();
+                      }}
+                    >
+                      MF Error → Share scope mismatch
+                    </MenuItem>
+                  </>
+                ) : null}
               </Menu>
             </Box>
 
@@ -774,25 +831,30 @@ const Navbar = () => {
                 <Divider />
                 <MenuItem onClick={() => handleRemoteNavigation('/debug/remotes')}>Shell → Remote Showcase</MenuItem>
                 <Divider />
-                {/* MF runtime/config error generators (for Zipy verification) */}
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerMFMismatchedExport();
-                  }}
-                >
-                  MF Error → Mismatched export
-                </MenuItem>
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerMFShareScopeMismatch();
-                  }}
-                >
-                  MF Error → Share scope mismatch
-                </MenuItem>
+                {/* MF runtime/config error generators (for Zipy verification). */}
+                {/* Reason: gated to prevent accidental production error injection/monitoring noise. */}
+                {isMFDangerToolsEnabled ? (
+                  <>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerMFMismatchedExport();
+                      }}
+                    >
+                      MF Error → Mismatched export
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerMFShareScopeMismatch();
+                      }}
+                    >
+                      MF Error → Share scope mismatch
+                    </MenuItem>
+                  </>
+                ) : null}
               </Menu>
 
               <Button
