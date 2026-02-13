@@ -143,16 +143,11 @@ const Navbar = () => {
   };
 
   const triggerChunkLoadFailure = () => {
-    const wpr = typeof __webpack_require__ !== 'undefined' ? __webpack_require__ : null;
-    if (!wpr || typeof wpr.p !== 'string') {
-      void import('../diagnostics/DeferredPanel.jsx');
-      return;
-    }
-    const orig = wpr.p;
-    wpr.p = 'http://localhost:9/';
-    const p = import('../diagnostics/DeferredPanel.jsx');
-    wpr.p = orig;
-    void p;
+    void import('../diagnostics/DeferredPanel.jsx').catch((e) => {
+      setTimeout(() => {
+        throw e;
+      }, 0);
+    });
   };
 
   const triggerAbortRace = () => {
