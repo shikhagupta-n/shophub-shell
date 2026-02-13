@@ -134,6 +134,49 @@ const Navbar = () => {
     handleNavigation(path);
   };
 
+  const reportZipyException = (err, context = {}) => {
+    // Reason: make sure the error is visible in Zipy even if it surfaces as a handled rejection.
+    if (window.zipy) {
+      window.zipy.logMessage('MF runtime/config error triggered', context);
+      window.zipy.logException(err);
+    }
+    // eslint-disable-next-line no-console
+    console.error('[MF][RuntimeConfigError]', context, err);
+  };
+
+  const triggerMFMismatchedExport = async () => {
+    // Runtime/Config error: mismatched exports between host and remote.
+    // We intentionally import a non-existent exposed module from a remote.
+    try {
+      await import('catalog/__MISSING_EXPOSED_MODULE__');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      reportZipyException(e, { kind: 'mf_mismatched_exports', remote: 'catalog', request: 'catalog/__MISSING_EXPOSED_MODULE__' });
+      return;
+    }
+  };
+
+  const triggerMFShareScopeMismatch = async () => {
+    // Runtime/Config error: wrong package version sharing / share-scope mismatch.
+    // Strategy:
+    // 1) Ensure the remote container is loaded (creates `window.catalog`).
+    // 2) Call `window.catalog.init({})` with a different share scope.
+    // Webpack will throw: "Container initialization failed as it has already been initialized with a different share scope"
+    // or similar, which is exactly the kind of MF sharing/runtime config issue we want to capture.
+    try {
+      await import('catalog/Products');
+      if (!window.catalog || typeof window.catalog.init !== 'function') {
+        throw new Error('Remote container `catalog` is not available on window after import.');
+      }
+      // Intentionally pass a bad share scope to force an MF init error.
+      // eslint-disable-next-line no-await-in-loop
+      await window.catalog.init({});
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      reportZipyException(e, { kind: 'mf_share_scope_mismatch', remote: 'catalog', action: 'window.catalog.init({})' });
+    }
+  };
+
   // Handle logout - implements fail/success pattern
   const handleLogout = async () => {
     try {
@@ -420,6 +463,26 @@ const Navbar = () => {
                 <MenuItem onClick={() => handleRemoteNavigation('/account/addresses')}>Account → Addresses</MenuItem>
                 <Divider />
                 <MenuItem onClick={() => handleRemoteNavigation('/debug/remotes')}>Shell → Remote Showcase</MenuItem>
+                <Divider />
+                {/* MF runtime/config error generators (for Zipy verification) */}
+                <MenuItem
+                  data-skip-logical-error="true"
+                  onClick={() => {
+                    handleRemotesMenuClose();
+                    triggerMFMismatchedExport();
+                  }}
+                >
+                  MF Error → Mismatched export
+                </MenuItem>
+                <MenuItem
+                  data-skip-logical-error="true"
+                  onClick={() => {
+                    handleRemotesMenuClose();
+                    triggerMFShareScopeMismatch();
+                  }}
+                >
+                  MF Error → Share scope mismatch
+                </MenuItem>
               </Menu>
             </Box>
 
@@ -710,6 +773,26 @@ const Navbar = () => {
                 <MenuItem onClick={() => handleRemoteNavigation('/account/addresses')}>Account → Addresses</MenuItem>
                 <Divider />
                 <MenuItem onClick={() => handleRemoteNavigation('/debug/remotes')}>Shell → Remote Showcase</MenuItem>
+                <Divider />
+                {/* MF runtime/config error generators (for Zipy verification) */}
+                <MenuItem
+                  data-skip-logical-error="true"
+                  onClick={() => {
+                    handleRemotesMenuClose();
+                    triggerMFMismatchedExport();
+                  }}
+                >
+                  MF Error → Mismatched export
+                </MenuItem>
+                <MenuItem
+                  data-skip-logical-error="true"
+                  onClick={() => {
+                    handleRemotesMenuClose();
+                    triggerMFShareScopeMismatch();
+                  }}
+                >
+                  MF Error → Share scope mismatch
+                </MenuItem>
               </Menu>
 
               <Button
