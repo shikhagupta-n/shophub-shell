@@ -89,7 +89,7 @@ module.exports = (_env, argv) => {
       assetModuleFilename: 'assets/[name].[contenthash][ext][query]',
       // IMPORTANT for Module Federation:
       // Reason: ensures chunks load correctly no matter what origin serves them (dev/prod/CDN).
-      publicPath: 'auto',
+      publicPath: isProd ? '/static/' : 'auto',
       clean: true,
       uniqueName: 'shophub-shell',
     },
