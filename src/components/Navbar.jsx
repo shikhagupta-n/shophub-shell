@@ -134,47 +134,36 @@ const Navbar = () => {
     handleNavigation(path);
   };
 
-  const reportZipyException = (err, context = {}) => {
-    // Reason: make sure the error is visible in Zipy even if it surfaces as a handled rejection.
-    if (window.zipy) {
-      window.zipy.logMessage('MF runtime/config error triggered', context);
-      window.zipy.logException(err);
-    }
-    // eslint-disable-next-line no-console
-    console.error('[MF][RuntimeConfigError]', context, err);
+  const triggerMFMismatchedExport = () => {
+    void import('catalog/__MISSING_EXPOSED_MODULE__');
   };
 
-  const triggerMFMismatchedExport = async () => {
-    // Runtime/Config error: mismatched exports between host and remote.
-    // We intentionally import a non-existent exposed module from a remote.
-    try {
-      await import('catalog/__MISSING_EXPOSED_MODULE__');
-    } catch (err) {
-      const e = err instanceof Error ? err : new Error(String(err));
-      reportZipyException(e, { kind: 'mf_mismatched_exports', remote: 'catalog', request: 'catalog/__MISSING_EXPOSED_MODULE__' });
+  const triggerMFShareScopeMismatch = () => {
+    void import('catalog/Products').then(() => window.catalog.init({}));
+  };
+
+  const triggerChunkLoadFailure = () => {
+    const wpr = typeof __webpack_require__ !== 'undefined' ? __webpack_require__ : null;
+    if (!wpr || typeof wpr.p !== 'string') {
+      void import('../diagnostics/DeferredPanel.jsx');
       return;
     }
+    const orig = wpr.p;
+    wpr.p = 'http://localhost:9/';
+    const p = import('../diagnostics/DeferredPanel.jsx');
+    wpr.p = orig;
+    void p;
   };
 
-  const triggerMFShareScopeMismatch = async () => {
-    // Runtime/Config error: wrong package version sharing / share-scope mismatch.
-    // Strategy:
-    // 1) Ensure the remote container is loaded (creates `window.catalog`).
-    // 2) Call `window.catalog.init({})` with a different share scope.
-    // Webpack will throw: "Container initialization failed as it has already been initialized with a different share scope"
-    // or similar, which is exactly the kind of MF sharing/runtime config issue we want to capture.
-    try {
-      await import('catalog/Products');
-      if (!window.catalog || typeof window.catalog.init !== 'function') {
-        throw new Error('Remote container `catalog` is not available on window after import.');
-      }
-      // Intentionally pass a bad share scope to force an MF init error.
-      // eslint-disable-next-line no-await-in-loop
-      await window.catalog.init({});
-    } catch (err) {
-      const e = err instanceof Error ? err : new Error(String(err));
-      reportZipyException(e, { kind: 'mf_share_scope_mismatch', remote: 'catalog', action: 'window.catalog.init({})' });
-    }
+  const triggerAbortRace = () => {
+    const controller = new AbortController();
+    const p = fetch('http://localhost:4000/api/time', { signal: controller.signal }).then((r) => r.json());
+    setTimeout(() => controller.abort(), 0);
+    void p;
+  };
+
+  const triggerNetworkFailure = () => {
+    void fetch('http://localhost:9/').then((r) => r.text());
   };
 
   // Handle logout - implements fail/success pattern
@@ -464,7 +453,6 @@ const Navbar = () => {
                 <Divider />
                 <MenuItem onClick={() => handleRemoteNavigation('/debug/remotes')}>Shell → Remote Showcase</MenuItem>
                 <Divider />
-                {/* MF runtime/config error generators (for Zipy verification) */}
                 <MenuItem
                   data-skip-logical-error="true"
                   onClick={() => {
@@ -472,7 +460,7 @@ const Navbar = () => {
                     triggerMFMismatchedExport();
                   }}
                 >
-                  MF Error → Mismatched export
+                  Remote module import
                 </MenuItem>
                 <MenuItem
                   data-skip-logical-error="true"
@@ -481,7 +469,34 @@ const Navbar = () => {
                     triggerMFShareScopeMismatch();
                   }}
                 >
-                  MF Error → Share scope mismatch
+                  Remote init
+                </MenuItem>
+                <MenuItem
+                  data-skip-logical-error="true"
+                  onClick={() => {
+                    handleRemotesMenuClose();
+                    triggerChunkLoadFailure();
+                  }}
+                >
+                  Open offers
+                </MenuItem>
+                <MenuItem
+                  data-skip-logical-error="true"
+                  onClick={() => {
+                    handleRemotesMenuClose();
+                    triggerAbortRace();
+                  }}
+                >
+                  Refresh prices
+                </MenuItem>
+                <MenuItem
+                  data-skip-logical-error="true"
+                  onClick={() => {
+                    handleRemotesMenuClose();
+                    triggerNetworkFailure();
+                  }}
+                >
+                  Sync account
                 </MenuItem>
               </Menu>
             </Box>
@@ -774,7 +789,6 @@ const Navbar = () => {
                 <Divider />
                 <MenuItem onClick={() => handleRemoteNavigation('/debug/remotes')}>Shell → Remote Showcase</MenuItem>
                 <Divider />
-                {/* MF runtime/config error generators (for Zipy verification) */}
                 <MenuItem
                   data-skip-logical-error="true"
                   onClick={() => {
@@ -782,7 +796,7 @@ const Navbar = () => {
                     triggerMFMismatchedExport();
                   }}
                 >
-                  MF Error → Mismatched export
+                  Remote module import
                 </MenuItem>
                 <MenuItem
                   data-skip-logical-error="true"
@@ -791,7 +805,34 @@ const Navbar = () => {
                     triggerMFShareScopeMismatch();
                   }}
                 >
-                  MF Error → Share scope mismatch
+                  Remote init
+                </MenuItem>
+                <MenuItem
+                  data-skip-logical-error="true"
+                  onClick={() => {
+                    handleRemotesMenuClose();
+                    triggerChunkLoadFailure();
+                  }}
+                >
+                  Open offers
+                </MenuItem>
+                <MenuItem
+                  data-skip-logical-error="true"
+                  onClick={() => {
+                    handleRemotesMenuClose();
+                    triggerAbortRace();
+                  }}
+                >
+                  Refresh prices
+                </MenuItem>
+                <MenuItem
+                  data-skip-logical-error="true"
+                  onClick={() => {
+                    handleRemotesMenuClose();
+                    triggerNetworkFailure();
+                  }}
+                >
+                  Sync account
                 </MenuItem>
               </Menu>
 
