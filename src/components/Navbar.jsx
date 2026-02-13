@@ -1,3 +1,5 @@
+/* global __webpack_require__ */
+// Reason: Webpack injects `__webpack_require__` at runtime; ESLint doesn't know about it by default.
 import React, { useState, useEffect } from 'react';
 import {
   AppBar,
@@ -142,20 +144,43 @@ const Navbar = () => {
     void import('catalog/Products').then(() => window.catalog.init({}));
   };
 
+  const openOffersPanel = () => {
+    // Reason: load the offers panel via dynamic import without touching Webpack runtime internals.
+    // This is the safe path for normal users and avoids accidental `ChunkLoadError`s.
+    void import('../diagnostics/DeferredPanel.jsx');
+  };
+
   const triggerChunkLoadFailure = () => {
+    // IMPORTANT:
+    // Reason: this intentionally simulates a chunk-load failure for observability testing.
+    // It must never run for normal users because it can break real navigation/feature flows.
+    if (!isFailModeOn()) {
+      openOffersPanel();
+      return;
+    }
+
     const wpr = typeof __webpack_require__ !== 'undefined' ? __webpack_require__ : null;
     if (!wpr || typeof wpr.p !== 'string') {
-      void import('../diagnostics/DeferredPanel.jsx');
+      openOffersPanel();
       return;
     }
     const orig = wpr.p;
-    wpr.p = 'http://localhost:9/';
-    const p = import('../diagnostics/DeferredPanel.jsx');
-    wpr.p = orig;
-    void p;
+    try {
+      // Use a same-origin but invalid base path to avoid cross-origin surprises (CORS, CSP) in prod.
+      // This still reliably reproduces a ChunkLoadError when fail mode is explicitly enabled.
+      wpr.p = new URL('/__debug__/bad-chunk-base/', window.location.origin).toString();
+      const p = import('../diagnostics/DeferredPanel.jsx');
+      void p;
+    } finally {
+      // Always restore the original publicPath so subsequent imports work normally.
+      wpr.p = orig;
+    }
   };
 
   const triggerAbortRace = () => {
+    // Reason: debug-only action; avoid surprising users with failing requests.
+    if (!isFailModeOn()) return;
+
     const controller = new AbortController();
     const p = fetch('http://localhost:4000/api/time', { signal: controller.signal }).then((r) => r.json());
     setTimeout(() => controller.abort(), 0);
@@ -163,7 +188,13 @@ const Navbar = () => {
   };
 
   const triggerNetworkFailure = () => {
-    void fetch('http://localhost:9/').then((r) => r.text());
+    // Reason: debug-only action; avoid leaking hardcoded dev URLs into production code paths.
+    if (!isFailModeOn()) return;
+
+    // Same-origin request that is expected to 404; avoids connection-refused errors and cross-origin noise.
+    const url = new URL('/__debug__/network-failure', window.location.origin);
+    url.searchParams.set('t', String(Date.now()));
+    void fetch(url.toString(), { cache: 'no-store' }).then((r) => r.text());
   };
 
   // Handle logout - implements fail/success pattern
@@ -452,52 +483,65 @@ const Navbar = () => {
                 <MenuItem onClick={() => handleRemoteNavigation('/account/addresses')}>Account → Addresses</MenuItem>
                 <Divider />
                 <MenuItem onClick={() => handleRemoteNavigation('/debug/remotes')}>Shell → Remote Showcase</MenuItem>
-                <Divider />
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerMFMismatchedExport();
-                  }}
-                >
-                  Remote module import
-                </MenuItem>
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerMFShareScopeMismatch();
-                  }}
-                >
-                  Remote init
-                </MenuItem>
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerChunkLoadFailure();
-                  }}
-                >
-                  Open offers
-                </MenuItem>
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerAbortRace();
-                  }}
-                >
-                  Refresh prices
-                </MenuItem>
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerNetworkFailure();
-                  }}
-                >
-                  Sync account
-                </MenuItem>
+                {failModeEnabled && (
+                  <>
+                    <Divider />
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerMFMismatchedExport();
+                      }}
+                    >
+                      Debug: Remote module import (missing expose)
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerMFShareScopeMismatch();
+                      }}
+                    >
+                      Debug: Remote init (share-scope mismatch)
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        openOffersPanel();
+                      }}
+                    >
+                      Debug: Open offers panel (lazy import)
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerChunkLoadFailure();
+                      }}
+                    >
+                      Debug: Simulate chunk load failure
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerAbortRace();
+                      }}
+                    >
+                      Debug: AbortController race
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerNetworkFailure();
+                      }}
+                    >
+                      Debug: Network failure (404)
+                    </MenuItem>
+                  </>
+                )}
               </Menu>
             </Box>
 
@@ -788,52 +832,65 @@ const Navbar = () => {
                 <MenuItem onClick={() => handleRemoteNavigation('/account/addresses')}>Account → Addresses</MenuItem>
                 <Divider />
                 <MenuItem onClick={() => handleRemoteNavigation('/debug/remotes')}>Shell → Remote Showcase</MenuItem>
-                <Divider />
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerMFMismatchedExport();
-                  }}
-                >
-                  Remote module import
-                </MenuItem>
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerMFShareScopeMismatch();
-                  }}
-                >
-                  Remote init
-                </MenuItem>
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerChunkLoadFailure();
-                  }}
-                >
-                  Open offers
-                </MenuItem>
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerAbortRace();
-                  }}
-                >
-                  Refresh prices
-                </MenuItem>
-                <MenuItem
-                  data-skip-logical-error="true"
-                  onClick={() => {
-                    handleRemotesMenuClose();
-                    triggerNetworkFailure();
-                  }}
-                >
-                  Sync account
-                </MenuItem>
+                {failModeEnabled && (
+                  <>
+                    <Divider />
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerMFMismatchedExport();
+                      }}
+                    >
+                      Debug: Remote module import (missing expose)
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerMFShareScopeMismatch();
+                      }}
+                    >
+                      Debug: Remote init (share-scope mismatch)
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        openOffersPanel();
+                      }}
+                    >
+                      Debug: Open offers panel (lazy import)
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerChunkLoadFailure();
+                      }}
+                    >
+                      Debug: Simulate chunk load failure
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerAbortRace();
+                      }}
+                    >
+                      Debug: AbortController race
+                    </MenuItem>
+                    <MenuItem
+                      data-skip-logical-error="true"
+                      onClick={() => {
+                        handleRemotesMenuClose();
+                        triggerNetworkFailure();
+                      }}
+                    >
+                      Debug: Network failure (404)
+                    </MenuItem>
+                  </>
+                )}
               </Menu>
 
               <Button
