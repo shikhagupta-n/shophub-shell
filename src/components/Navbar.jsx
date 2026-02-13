@@ -33,6 +33,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useCart } from '../contexts/CartContext.jsx';
 import { useWishlist } from '../contexts/WishlistContext.jsx';
 import attemptTracker from '../utils/attemptTracker.js';
+import { initRemoteGlobalOnce } from '../utils/moduleFederation.js';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -139,7 +140,16 @@ const Navbar = () => {
   };
 
   const triggerMFShareScopeMismatch = () => {
-    void import('catalog/Products').then(() => window.catalog.init({}));
+    // IMPORTANT:
+    // - The MF container `init()` must always receive the host share scope object.
+    // - Calling `remote.init({})` (a fresh object) will throw:
+    //   "Container initialization failed as it has already been initialized with a different share scope".
+    // Reason: this was previously used as a diagnostics trigger, but in production it can break the session
+    // (especially if a user hits it via the Remotes menu). Initialize safely and idempotently instead.
+    void import('catalog/Products')
+      .then(() => initRemoteGlobalOnce('catalog'))
+      // eslint-disable-next-line no-console
+      .catch((e) => console.error('[shell][mf] Remote init failed (catalog):', e));
   };
 
   const triggerChunkLoadFailure = () => {
