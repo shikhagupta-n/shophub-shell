@@ -57,6 +57,12 @@ export const CartProvider = ({ children }) => {
       
         const largePayload = 'x'.repeat(5 * 1024 * 1024);
         localStorage.setItem('ecommerce_quota_test', largePayload);
+
+      // Fix: throw after fail-mode side effects to prevent fallthrough to the success
+      // path. Without this, the item is added to the cart AND a success toast is shown
+      // even though the precondition (fail mode off) is not met — the exact bug
+      // described by LOGIC_001 ("action allowed when preconditions are not met").
+      throw new Error(errorMessage);
     }
     
     // Success - add item to cart (only reaches here if fail mode is disabled)
