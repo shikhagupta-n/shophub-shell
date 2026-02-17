@@ -43,11 +43,28 @@ module.exports = (_env, argv) => {
   const zipyProjectKey = process.env.ZIPY_PROJECT_KEY ?? '';
   const zipyReleaseVer = process.env.ZIPY_RELEASE_VER ?? process.env.SHOPHUB_RELEASE_VER ?? pkg.version;
 
-  const authRemoteUrl = process.env.SHOPHUB_AUTH_REMOTE_URL ?? 'http://localhost:5174/remoteEntry.js';
-  const catalogRemoteUrl = process.env.SHOPHUB_CATALOG_REMOTE_URL ?? 'http://localhost:5175/remoteEntry.js';
-  const checkoutRemoteUrl = process.env.SHOPHUB_CHECKOUT_REMOTE_URL ?? 'http://localhost:5176/remoteEntry.js';
-  const wishlistRemoteUrl = process.env.SHOPHUB_WISHLIST_REMOTE_URL ?? 'http://localhost:5177/remoteEntry.js';
-  const accountRemoteUrl = process.env.SHOPHUB_ACCOUNT_REMOTE_URL ?? 'http://localhost:5178/remoteEntry.js';
+  // const authRemoteUrl = process.env.SHOPHUB_AUTH_REMOTE_URL ?? 'http://localhost:5174/remoteEntry.js';
+  // const catalogRemoteUrl = process.env.SHOPHUB_CATALOG_REMOTE_URL ?? 'http://localhost:5175/remoteEntry.js';
+  // const checkoutRemoteUrl = process.env.SHOPHUB_CHECKOUT_REMOTE_URL ?? 'http://localhost:5176/remoteEntry.js';
+  // const wishlistRemoteUrl = process.env.SHOPHUB_WISHLIST_REMOTE_URL ?? 'http://localhost:5177/remoteEntry.js';
+  // const accountRemoteUrl = process.env.SHOPHUB_ACCOUNT_REMOTE_URL ?? 'http://localhost:5178/remoteEntry.js';
+
+  const authRemoteUrl =
+    process.env.SHOPHUB_AUTH_REMOTE_URL ??
+    (isProd ? 'https://shophub-auth.netlify.app/remoteEntry.js' : 'https://shophub-auth.netlify.app/remoteEntry.js');
+  const catalogRemoteUrl =
+    process.env.SHOPHUB_CATALOG_REMOTE_URL ??
+    (isProd ? 'https://shophub-catalog.netlify.app/remoteEntry.js' : 'https://shophub-catalog.netlify.app/remoteEntry.js');
+  const checkoutRemoteUrl =
+    process.env.SHOPHUB_CHECKOUT_REMOTE_URL ??
+    (isProd ? 'https://shophub-checkout.netlify.app/remoteEntry.js' : 'https://shophub-checkout.netlify.app/remoteEntry.js');
+  const wishlistRemoteUrl =
+    process.env.SHOPHUB_WISHLIST_REMOTE_URL ??
+    (isProd ? 'https://shophub-wishlist.netlify.app/remoteEntry.js' : 'https://shophub-wishlist.netlify.app/remoteEntry.js');
+  const accountRemoteUrl =
+    process.env.SHOPHUB_ACCOUNT_REMOTE_URL ??
+    (isProd ? 'https://shophub-account.netlify.app/remoteEntry.js' : 'https://shophub-account.netlify.app/remoteEntry.js');
+
 
   // Support 5+ remotes without editing this config:
   // - Set `SHOPHUB_REMOTES` to a JSON object mapping remoteName -> remoteEntryUrl
@@ -89,7 +106,7 @@ module.exports = (_env, argv) => {
       assetModuleFilename: 'assets/[name].[contenthash][ext][query]',
       // IMPORTANT for Module Federation:
       // Reason: ensures chunks load correctly no matter what origin serves them (dev/prod/CDN).
-      publicPath: isProd ? '/static/' : 'auto',
+      publicPath: 'auto',
       clean: true,
       uniqueName: 'shophub-shell',
     },
