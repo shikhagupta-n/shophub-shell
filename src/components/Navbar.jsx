@@ -138,8 +138,32 @@ const Navbar = () => {
     void import('catalog/__MISSING_EXPOSED_MODULE__');
   };
 
-  const triggerMFShareScopeMismatch = () => {
-    void import('catalog/Products').then(() => window.catalog.init({}));
+  // Reason: Fixed container re-initialization to use webpack's Module Federation share scope API.
+  // Previously called window.catalog.init({}) with an empty scope after import, which caused
+  // "Container initialization failed as it has already been initialized with a different share scope"
+  // because the container had already been initialized with __webpack_share_scopes__.default during
+  // the dynamic import(). Fix: use __webpack_init_sharing__ to ensure the default scope is ready,
+  // then pass the same scope reference to container.init() (idempotent when the scope matches).
+  const triggerMFShareScopeMismatch = async () => {
+    try {
+      // Step 1: Ensure the default webpack share scope is fully initialized.
+      // eslint-disable-next-line no-undef
+      await __webpack_init_sharing__('default');
+
+      // Step 2: Load the remote module (this also triggers container init internally).
+      await import('catalog/Products');
+
+      // Step 3: Re-initialize the container with the CORRECT share scope reference.
+      // Using __webpack_share_scopes__.default (same reference webpack used) makes this safe/idempotent.
+      const container = window.catalog;
+      if (container && typeof container.init === 'function') {
+        // eslint-disable-next-line no-undef
+        await container.init(__webpack_share_scopes__.default);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[shell] Remote container initialization failed:', err?.message || err);
+    }
   };
 
   const triggerChunkLoadFailure = () => {
