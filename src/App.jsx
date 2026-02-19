@@ -48,7 +48,7 @@ function ProtectedRoute({ children }) {
 }
 
 function AppLayout() {
-  const { isAuthenticated, loading, login, signup } = useAuth();
+  const { isAuthenticated, loading, login, signup, user } = useAuth();
   // Note: `useAuth().loading` covers auth bootstrapping; login/signup each manage their own async state.
   const { cartItems, getCartTotal, addToCart, removeFromCart, updateQuantity, isCartEmpty, clearCart } = useCart();
   const { showError, showSuccess } = useSnackbar();
@@ -162,6 +162,7 @@ function AppLayout() {
                     addToCart={addToCart}
                     showError={showError}
                     showSuccess={showSuccess}
+                    currentUser={user}
                   />
                 </ProtectedRoute>
               }
