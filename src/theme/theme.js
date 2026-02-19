@@ -315,6 +315,7 @@ export const theme = createTheme({
             opacity: 0,
             transition: 'opacity 0.3s ease-in-out',
             zIndex: 1,
+            pointerEvents: 'none',
           },
           '&:hover': {
             boxShadow: '0px 12px 40px rgba(0, 0, 0, 0.15)',
