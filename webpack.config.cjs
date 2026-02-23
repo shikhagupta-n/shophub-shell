@@ -51,19 +51,19 @@ module.exports = (_env, argv) => {
 
   const authRemoteUrl =
     process.env.SHOPHUB_AUTH_REMOTE_URL ??
-    (isProd ? 'https://shophub-auth.netlify.app/remoteEntry.js' : 'https://shophub-auth.netlify.app/remoteEntry.js');
+    (isProd ? 'https://shophub-auth-2.netlify.app/remoteEntry.js' : 'https://shophub-auth-2.netlify.app/remoteEntry.js');
   const catalogRemoteUrl =
     process.env.SHOPHUB_CATALOG_REMOTE_URL ??
-    (isProd ? 'https://shophub-catalog.netlify.app/remoteEntry.js' : 'https://shophub-catalog.netlify.app/remoteEntry.js');
+    (isProd ? 'https://shophub-catalog-2.netlify.app/remoteEntry.js' : 'https://shophub-catalog-2.netlify.app/remoteEntry.js');
   const checkoutRemoteUrl =
     process.env.SHOPHUB_CHECKOUT_REMOTE_URL ??
-    (isProd ? 'https://shophub-checkout.netlify.app/remoteEntry.js' : 'https://shophub-checkout.netlify.app/remoteEntry.js');
+    (isProd ? 'https://shophub-checkout-2.netlify.app/remoteEntry.js' : 'https://shophub-checkout-2.netlify.app/remoteEntry.js');
   const wishlistRemoteUrl =
     process.env.SHOPHUB_WISHLIST_REMOTE_URL ??
-    (isProd ? 'https://shophub-wishlist.netlify.app/remoteEntry.js' : 'https://shophub-wishlist.netlify.app/remoteEntry.js');
+    (isProd ? 'https://shophub-wishlist-2.netlify.app/remoteEntry.js' : 'https://shophub-wishlist-2.netlify.app/remoteEntry.js');
   const accountRemoteUrl =
     process.env.SHOPHUB_ACCOUNT_REMOTE_URL ??
-    (isProd ? 'https://shophub-account.netlify.app/remoteEntry.js' : 'https://shophub-account.netlify.app/remoteEntry.js');
+    (isProd ? 'https://shophub-account-2.netlify.app/remoteEntry.js' : 'https://shophub-account-2.netlify.app/remoteEntry.js');
 
 
   // Support 5+ remotes without editing this config:
