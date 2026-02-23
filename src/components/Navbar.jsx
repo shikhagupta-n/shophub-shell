@@ -150,10 +150,21 @@ const Navbar = () => {
     });
   };
 
+  // Fix: AbortError was thrown as an unhandled rejection because (a) abort() had no reason
+  // and (b) the fetch promise lacked a .catch() handler. Providing a reason and catching
+  // the AbortError prevents the unhandled "signal is aborted without reason" error.
   const triggerAbortRace = () => {
     const controller = new AbortController();
-    const p = fetch('http://localhost:4000/api/time', { signal: controller.signal }).then((r) => r.json());
-    setTimeout(() => controller.abort(), 0);
+    const p = fetch('http://localhost:4000/api/time', { signal: controller.signal })
+      .then((r) => r.json())
+      .catch((err) => {
+        if (err.name === 'AbortError') {
+          console.warn('[shell] Fetch aborted:', err.message);
+          return;
+        }
+        throw err;
+      });
+    setTimeout(() => controller.abort('Fetch cancelled due to abort race in Navbar'), 0);
     void p;
   };
 
