@@ -143,7 +143,21 @@ const Navbar = () => {
   };
 
   const triggerChunkLoadFailure = () => {
-    void import('../diagnostics/DeferredPanel.jsx').catch((e) => {
+    const wpr = typeof __webpack_require__ !== 'undefined' ? __webpack_require__ : null;
+    if (!wpr || typeof wpr.p !== 'string') {
+      void import('../diagnostics/DeferredPanel.jsx').catch((e) => {
+        setTimeout(() => {
+          throw e;
+        }, 0);
+      });
+      return;
+    }
+
+    const orig = wpr.p;
+    wpr.p = '/__missing_public_path__/';
+    const p = import('../diagnostics/DeferredPanel.jsx');
+    wpr.p = orig;
+    void p.catch((e) => {
       setTimeout(() => {
         throw e;
       }, 0);
@@ -159,6 +173,16 @@ const Navbar = () => {
 
   const triggerNetworkFailure = () => {
     void fetch('http://localhost:9/').then((r) => r.text());
+  };
+
+  const triggerRoutingError = () => {
+    try {
+      navigate({ pathname: '/products', search: { q: 'shoes' } });
+    } catch (e) {
+      setTimeout(() => {
+        throw e;
+      }, 0);
+    }
   };
 
   // Handle logout - implements fail/success pattern
@@ -518,6 +542,13 @@ const Navbar = () => {
               {/* Search Icon */}
               <IconButton
                 color="inherit"
+                onClick={() => {
+                  if (attemptTracker.getFailMode()) {
+                    triggerRoutingError();
+                    return;
+                  }
+                  handleNavigation('/products');
+                }}
                 sx={{ 
                   color: 'text.primary',
                   '&:hover': {
