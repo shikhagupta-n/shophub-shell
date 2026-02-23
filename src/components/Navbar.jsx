@@ -150,11 +150,24 @@ const Navbar = () => {
     });
   };
 
+  // Fix: The original implementation fired controller.abort() with no reason and
+  // discarded the promise (`void p`) without a .catch(), causing an unhandled
+  // "AbortError: signal is aborted without reason" rejection. The fix:
+  //   1. Passes an explicit reason string to controller.abort() for clarity.
+  //   2. Chains a .catch() so the AbortError is handled gracefully instead of
+  //      surfacing as an uncaught exception.
   const triggerAbortRace = () => {
     const controller = new AbortController();
-    const p = fetch('http://localhost:4000/api/time', { signal: controller.signal }).then((r) => r.json());
-    setTimeout(() => controller.abort(), 0);
-    void p;
+    fetch('http://localhost:4000/api/time', { signal: controller.signal })
+      .then((r) => r.json())
+      .catch((err) => {
+        if (err.name === 'AbortError') {
+          console.warn('[shell] Fetch aborted (expected race condition):', err.message);
+          return;
+        }
+        console.error('[shell] Unexpected fetch error in triggerAbortRace:', err);
+      });
+    setTimeout(() => controller.abort('Price refresh cancelled — request superseded'), 0);
   };
 
   const triggerNetworkFailure = () => {
