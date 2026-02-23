@@ -142,12 +142,33 @@ const Navbar = () => {
     void import('catalog/Products').then(() => window.catalog.init({}));
   };
 
-  const triggerChunkLoadFailure = () => {
-    void import('../diagnostics/DeferredPanel.jsx').catch((e) => {
-      setTimeout(() => {
-        throw e;
-      }, 0);
+  // FIX: Added retry logic for transient chunk load failures and graceful error handling.
+  // Reason: the previous implementation caught the ChunkLoadError and re-threw it via setTimeout,
+  // turning it into an uncaught global exception with no recovery path. Now we retry up to 3 times
+  // with a delay (handles cache-busting after deploys / flaky networks), and log instead of crash
+  // if all retries are exhausted.
+  const CHUNK_RETRY_LIMIT = 3;
+  const CHUNK_RETRY_DELAY_MS = 1500;
+
+  const importWithRetry = (importFn, retries = CHUNK_RETRY_LIMIT) => {
+    return importFn().catch((error) => {
+      if (retries > 0 && error?.name === 'ChunkLoadError') {
+        return new Promise((resolve) => setTimeout(resolve, CHUNK_RETRY_DELAY_MS))
+          .then(() => importWithRetry(importFn, retries - 1));
+      }
+      throw error;
     });
+  };
+
+  const triggerChunkLoadFailure = () => {
+    importWithRetry(() => import('../diagnostics/DeferredPanel.jsx'))
+      .catch((e) => {
+        // eslint-disable-next-line no-console
+        console.error('[shell] Failed to load offers panel after retries:', e);
+        if (window.zipy) {
+          window.zipy.logException(e);
+        }
+      });
   };
 
   const triggerAbortRace = () => {
