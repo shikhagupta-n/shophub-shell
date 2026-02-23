@@ -142,11 +142,30 @@ const Navbar = () => {
     void import('catalog/Products').then(() => window.catalog.init({}));
   };
 
+  // FIX: Added retry logic for dynamic chunk loading to handle transient failures
+  // (stale hashes after deploy, brief network blips, CDN propagation delays).
+  // Previously, the catch handler re-threw via setTimeout creating an unhandled exception;
+  // now it retries and, on final failure, reports through the monitoring SDK gracefully.
   const triggerChunkLoadFailure = () => {
-    void import('../diagnostics/DeferredPanel.jsx').catch((e) => {
-      setTimeout(() => {
-        throw e;
-      }, 0);
+    const maxRetries = 2;
+    const retryDelay = 1500;
+
+    const attemptLoad = (retriesLeft) => {
+      return import('../diagnostics/DeferredPanel.jsx').catch((error) => {
+        if (retriesLeft > 0) {
+          console.warn(`[shell] Chunk load failed, retrying (${retriesLeft} left)…`, error.message);
+          return new Promise((resolve) => setTimeout(resolve, retryDelay))
+            .then(() => attemptLoad(retriesLeft - 1));
+        }
+        throw error;
+      });
+    };
+
+    attemptLoad(maxRetries).catch((e) => {
+      console.error('[shell] ChunkLoadError: DeferredPanel failed to load after retries', e);
+      if (window.zipy) {
+        window.zipy.logException(e);
+      }
     });
   };
 
