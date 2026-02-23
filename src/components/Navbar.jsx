@@ -142,26 +142,11 @@ const Navbar = () => {
     void import('catalog/Products').then(() => window.catalog.init({}));
   };
 
+  // Fix: removed deliberate __webpack_require__.p corruption that caused ChunkLoadError
+  // by generating URLs like /__missing_public_path__/assets/731.xxx.js.
+  // The dynamic import now uses the correct public path set by webpack config.
   const triggerChunkLoadFailure = () => {
-    const wpr = typeof __webpack_require__ !== 'undefined' ? __webpack_require__ : null;
-    if (!wpr || typeof wpr.p !== 'string') {
-      void import('../diagnostics/DeferredPanel.jsx').catch((e) => {
-        setTimeout(() => {
-          throw e;
-        }, 0);
-      });
-      return;
-    }
-
-    const orig = wpr.p;
-    wpr.p = '/__missing_public_path__/';
-    const p = import('../diagnostics/DeferredPanel.jsx');
-    wpr.p = orig;
-    void p.catch((e) => {
-      setTimeout(() => {
-        throw e;
-      }, 0);
-    });
+    void import('../diagnostics/DeferredPanel.jsx');
   };
 
   const triggerAbortRace = () => {
