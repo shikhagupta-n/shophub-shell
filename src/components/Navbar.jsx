@@ -142,22 +142,13 @@ const Navbar = () => {
     void import('catalog/Products').then(() => window.catalog.init({}));
   };
 
+  // Fix: removed deliberate publicPath corruption that caused ChunkLoadError.
+  // Previously, __webpack_require__.p was temporarily set to '/__missing_public_path__/'
+  // before the dynamic import, which made webpack construct an invalid chunk URL
+  // (e.g. /__missing_public_path__/assets/731.xxx.js) leading to a ChunkLoadError.
+  // The import now uses the correctly configured publicPath ('auto') from webpack.config.cjs.
   const triggerChunkLoadFailure = () => {
-    const wpr = typeof __webpack_require__ !== 'undefined' ? __webpack_require__ : null;
-    if (!wpr || typeof wpr.p !== 'string') {
-      void import('../diagnostics/DeferredPanel.jsx').catch((e) => {
-        setTimeout(() => {
-          throw e;
-        }, 0);
-      });
-      return;
-    }
-
-    const orig = wpr.p;
-    wpr.p = '/__missing_public_path__/';
-    const p = import('../diagnostics/DeferredPanel.jsx');
-    wpr.p = orig;
-    void p.catch((e) => {
+    void import('../diagnostics/DeferredPanel.jsx').catch((e) => {
       setTimeout(() => {
         throw e;
       }, 0);
