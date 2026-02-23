@@ -104,9 +104,14 @@ module.exports = (_env, argv) => {
       filename: isProd ? 'assets/[name].[contenthash].js' : 'assets/[name].js',
       chunkFilename: isProd ? 'assets/[name].[contenthash].js' : 'assets/[name].js',
       assetModuleFilename: 'assets/[name].[contenthash][ext][query]',
-      // IMPORTANT for Module Federation:
-      // Reason: ensures chunks load correctly no matter what origin serves them (dev/prod/CDN).
-      publicPath: 'auto',
+      // FIX: Use '/' instead of 'auto' for the shell (host) application.
+      // Reason: 'auto' relies on document.currentScript.src at runtime to resolve chunk URLs, but
+      // in Module Federation setups with multiple external scripts (analytics SDKs, remote entries),
+      // the auto-detection can resolve to an incorrect origin (e.g. http://localhost:9/), causing
+      // ChunkLoadError for the shell's own lazy-loaded chunks.
+      // The shell always serves from the root path so '/' is deterministic and correct.
+      // Note: remotes are unaffected — each remote's webpack runtime manages its own publicPath.
+      publicPath: '/',
       clean: true,
       uniqueName: 'shophub-shell',
     },
