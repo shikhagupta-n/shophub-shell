@@ -104,9 +104,12 @@ module.exports = (_env, argv) => {
       filename: isProd ? 'assets/[name].[contenthash].js' : 'assets/[name].js',
       chunkFilename: isProd ? 'assets/[name].[contenthash].js' : 'assets/[name].js',
       assetModuleFilename: 'assets/[name].[contenthash][ext][query]',
-      // IMPORTANT for Module Federation:
-      // Reason: ensures chunks load correctly no matter what origin serves them (dev/prod/CDN).
-      publicPath: 'auto',
+      // FIX: Changed from 'auto' to '/' — the shell is the MF host and always serves its own
+      // chunks from its own origin.  'auto' is designed for MF *remotes* (whose chunks must load
+      // from the remote's origin, not the host's).  In the host, 'auto' can misresolve when
+      // external scripts (e.g. Zipy SDK) interfere with document.currentScript detection,
+      // causing ChunkLoadError with a wrong base URL (e.g. localhost:9).
+      publicPath: '/',
       clean: true,
       uniqueName: 'shophub-shell',
     },
