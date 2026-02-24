@@ -19,9 +19,13 @@ const createFetchRequest = async (endpoint, options = {}) => {
   // Merge options
   const fetchOptions = { ...defaultOptions, ...options };
 
-  // Create AbortController for timeout functionality
+  // Create AbortController for timeout functionality.
+  // Reason string passed to abort() prevents "signal is aborted without reason" errors.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), fetchOptions.timeout);
+  const timeoutId = setTimeout(
+    () => controller.abort(`Request to ${endpoint} timed out after ${fetchOptions.timeout}ms`),
+    fetchOptions.timeout,
+  );
 
   try {
     const response = await fetch(url, {
