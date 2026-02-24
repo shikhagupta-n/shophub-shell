@@ -16,6 +16,29 @@
   <!-- <script src="https://cdn.zipy.ai/sdk/v1.0/zipy.min.umd.js" crossorigin="anonymous"></script>
   <script> window.zipy && window.zipy.init('dccd3e29');</script> -->
 
+  <script>
+    // Ensure Promise-based runtime failures (like MF dynamic import errors) are captured.
+    (function () {
+      if (!window.zipy || typeof window.zipy.logException !== 'function') return;
+
+      window.addEventListener('unhandledrejection', function (event) {
+        try {
+          window.zipy.logException(event && event.reason ? event.reason : event);
+        } catch {
+          // ignore
+        }
+      });
+
+      window.addEventListener('error', function (event) {
+        try {
+          if (event && event.error) window.zipy.logException(event.error);
+        } catch {
+          // ignore
+        }
+      });
+    })();
+  </script>
+
 </head>
 
 <body>
