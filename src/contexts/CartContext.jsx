@@ -23,6 +23,10 @@ export const CartProvider = ({ children }) => {
 
   // Load cart from localStorage on app initialization
   useEffect(() => {
+    // Clean up residual quota-test key left by the previous buggy error-simulation
+    // code that wrote 5MB of data to localStorage. Safe to remove unconditionally.
+    try { localStorage.removeItem('ecommerce_quota_test'); } catch { /* ignore */ }
+
     const savedCart = localStorage.getItem('ecommerce_cart');
     if (savedCart) {
       try {
@@ -35,9 +39,15 @@ export const CartProvider = ({ children }) => {
     }
   }, []);
 
-  // Save cart to localStorage whenever it changes
+  // Save cart to localStorage whenever it changes.
+  // Wrapped in try-catch to gracefully handle QuotaExceededError or
+  // privacy-mode restrictions — cart remains functional in-memory for the session.
   useEffect(() => {
-    localStorage.setItem('ecommerce_cart', JSON.stringify(cartItems));
+    try {
+      localStorage.setItem('ecommerce_cart', JSON.stringify(cartItems));
+    } catch (error) {
+      console.warn('Could not persist cart to localStorage:', error.message);
+    }
   }, [cartItems]);
 
   // Add item to cart with quantity management - implements fail/success pattern
@@ -55,8 +65,13 @@ export const CartProvider = ({ children }) => {
         body: JSON.stringify({ productId: product.id, quantity }),
       });
       
-        const largePayload = 'x'.repeat(5 * 1024 * 1024);
-        localStorage.setItem('ecommerce_quota_test', largePayload);
+      // Fix: Throw a clean DOMException instead of actually writing 5MB to localStorage.
+      // The previous approach caused a real QuotaExceededError by filling storage,
+      // which polluted localStorage and behaved inconsistently across browsers.
+      throw new DOMException(
+        "Failed to execute 'setItem' on 'Storage': Setting the value of 'ecommerce_cart' exceeded the quota.",
+        'QuotaExceededError'
+      );
     }
     
     // Success - add item to cart (only reaches here if fail mode is disabled)
