@@ -180,15 +180,34 @@ const Navbar = () => {
     });
   };
 
+  // FIX: Added .catch() to handle the AbortError that occurs when controller.abort()
+  // fires before the fetch completes. Without this, the rejected promise was unhandled,
+  // producing "AbortError: signal is aborted without reason" in production.
   const triggerAbortRace = () => {
     const controller = new AbortController();
-    const p = fetch('http://localhost:4000/api/time', { signal: controller.signal }).then((r) => r.json());
+    const p = fetch('http://localhost:4000/api/time', { signal: controller.signal })
+      .then((r) => r.json())
+      .catch((err) => {
+        if (err.name === 'AbortError') {
+          // Expected when the abort signal fires before the fetch resolves.
+          console.warn('[shell] Fetch aborted (AbortError handled gracefully):', err.message);
+          return;
+        }
+        // Re-throw non-abort errors so they are still surfaced for debugging.
+        throw err;
+      });
     setTimeout(() => controller.abort(), 0);
     void p;
   };
 
+  // FIX: Added .catch() to prevent unhandled promise rejection when the network
+  // request fails (e.g., connection refused). Same class of bug as the AbortError fix above.
   const triggerNetworkFailure = () => {
-    void fetch('http://localhost:9/').then((r) => r.text());
+    void fetch('http://localhost:9/')
+      .then((r) => r.text())
+      .catch((err) => {
+        console.warn('[shell] Network failure (handled gracefully):', err.message);
+      });
   };
 
   const triggerRoutingError = () => {
