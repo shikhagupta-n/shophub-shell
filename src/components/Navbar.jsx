@@ -135,11 +135,27 @@ const Navbar = () => {
   };
 
   const triggerMFMismatchedExport = () => {
-    void import('catalog/__MISSING_EXPOSED_MODULE__');
+    void import('catalog/__MISSING_EXPOSED_MODULE__').catch((e) => {
+      if (window.zipy && typeof window.zipy.logException === 'function') {
+        window.zipy.logException(e);
+      }
+      setTimeout(() => {
+        throw e;
+      }, 0);
+    });
   };
 
   const triggerMFShareScopeMismatch = () => {
-    void import('catalog/Products').then(() => window.catalog.init({}));
+    void import('catalog/Products')
+      .then(() => window.catalog.init({}))
+      .catch((e) => {
+        if (window.zipy && typeof window.zipy.logException === 'function') {
+          window.zipy.logException(e);
+        }
+        setTimeout(() => {
+          throw e;
+        }, 0);
+      });
   };
 
   const triggerChunkLoadFailure = () => {
