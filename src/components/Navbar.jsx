@@ -180,11 +180,24 @@ const Navbar = () => {
     });
   };
 
+  // Fix: AbortError "signal is aborted without reason" was caused by calling
+  // controller.abort() without a reason and not catching the resulting rejection.
+  // Now we pass a descriptive reason to abort() and properly catch the AbortError
+  // to prevent unhandled promise rejections.
   const triggerAbortRace = () => {
     const controller = new AbortController();
-    const p = fetch('http://localhost:4000/api/time', { signal: controller.signal }).then((r) => r.json());
-    setTimeout(() => controller.abort(), 0);
-    void p;
+    const abortReason = 'Price refresh request superseded by newer request';
+    fetch('http://localhost:4000/api/time', { signal: controller.signal })
+      .then((r) => r.json())
+      .catch((err) => {
+        if (err.name === 'AbortError') {
+          // Gracefully handle the expected abort — log for diagnostics only.
+          console.warn('[shell][triggerAbortRace] Fetch aborted:', abortReason);
+          return;
+        }
+        throw err;
+      });
+    setTimeout(() => controller.abort(abortReason), 0);
   };
 
   const triggerNetworkFailure = () => {
