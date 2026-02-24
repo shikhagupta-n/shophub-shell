@@ -21,7 +21,9 @@ const createFetchRequest = async (endpoint, options = {}) => {
 
   // Create AbortController for timeout functionality
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), fetchOptions.timeout);
+  // Provide an explicit reason so AbortError messages are descriptive rather than
+  // the default "signal is aborted without reason".
+  const timeoutId = setTimeout(() => controller.abort('Request timed out'), fetchOptions.timeout);
 
   try {
     const response = await fetch(url, {
