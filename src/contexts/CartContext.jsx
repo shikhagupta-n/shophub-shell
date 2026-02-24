@@ -55,8 +55,12 @@ export const CartProvider = ({ children }) => {
         body: JSON.stringify({ productId: product.id, quantity }),
       });
       
-        const largePayload = 'x'.repeat(5 * 1024 * 1024);
-        localStorage.setItem('ecommerce_quota_test', largePayload);
+      // Throw QuotaExceededError directly instead of filling localStorage,
+      // consistent with how other fail modes in this file throw DOMExceptions
+      throw new DOMException(
+        "Failed to execute 'setItem' on 'Storage': Setting the value of 'ecommerce_quota_test' exceeded the quota.",
+        'QuotaExceededError'
+      );
     }
     
     // Success - add item to cart (only reaches here if fail mode is disabled)
